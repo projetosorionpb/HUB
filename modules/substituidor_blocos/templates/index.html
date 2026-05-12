@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Substituidor de Blocos DXF</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a1a;
+            --bg-secondary: #111128;
+            --bg-card: #16163a;
+            --bg-card-hover: #1e1e4a;
+            --bg-input: #1a1a3e;
+            --border: #2a2a5a;
+            --border-focus: #6C63FF;
+            --text-primary: #e8e8f0;
+            --text-secondary: #9898b8;
+            --text-muted: #6868a0;
+            --accent-1: #6C63FF;
+            --accent-2: #4ECDC4;
+            --accent-3: #FF6B6B;
+            --accent-gradient: linear-gradient(135deg, #6C63FF, #4ECDC4);
+            --success: #4ECDC4;
+            --warning: #FFD93D;
+            --danger: #FF6B6B;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 20px rgba(108, 99, 255, 0.15);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Background effects */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 20%, rgba(108, 99, 255, 0.06) 0%, transparent 50%),
+                radial-gradient(circle at 70% 80%, rgba(78, 205, 196, 0.04) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px 0;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 300;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .upload-card {
+            background: linear-gradient(145deg, var(--bg-card), var(--bg-secondary));
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .upload-card:hover::before,
+        .upload-card.has-file::before {
+            opacity: 1;
+        }
+
+        .upload-card.has-file {
+            border-color: var(--accent-1);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .upload-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .upload-card h3 .icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .source-icon {
+            background: rgba(108, 99, 255, 0.2);
+            color: var(--accent-1);
+        }
+
+        .target-icon {
+            background: rgba(78, 205, 196, 0.2);
+            color: var(--accent-2);
+        }
+
+        .excel-icon {
+            background: rgba(255, 217, 61, 0.2);
+            color: var(--warning);
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-md);
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.01);
+        }
+
+        .drop-zone:hover {
+            border-color: var(--accent-1);
+            background: rgba(108, 99, 255, 0.05);
+        }
+
+        .drop-zone.dragover {
+            border-color: var(--accent-2);
+            background: rgba(78, 205, 196, 0.08);
+            transform: scale(1.01);
+        }
+
+        .drop-zone svg {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        .drop-zone p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .drop-zone .highlight {
+            color: var(--accent-1);
+            font-weight: 500;
+        }
+
+        .file-info {
+            display: none;
+            padding: 12px 16px;
+            background: rgba(78, 205, 196, 0.08);
+            border-radius: var(--radius-sm);
+            margin-top: 12px;
+            font-size: 0.85rem;
+        }
+
+        .file-info.visible {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-info .fname {
+            font-weight: 500;
+            color: var(--accent-2);
+            flex: 1;
+        }
+
+        .file-info .fdetail {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        /* Stats badges */
+        .stats-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .stat-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(108, 99, 255, 0.15);
+            color: var(--accent-1);
+        }
+
+        .stat-badge.green {
+            background: rgba(78, 205, 196, 0.15);
+            color: var(--accent-2);
+        }
+
+        /* Mapping Section */
+        .mapping-section {
+            background: linear-gradient(145deg, var(--bg-card), var(--bg-secondary));
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 30px;
+        }
+
+        .mapping-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .mapping-header h2 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mapping-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .toggle-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .toggle-btn.active {
+            background: var(--accent-1);
+            border-color: var(--accent-1);
+            color: white;
+        }
+
+        .toggle-btn:hover:not(.active) {
+            border-color: var(--accent-1);
+            color: var(--text-primary);
+        }
+
+        /* Mapping Table */
+        .mapping-table {
+            width: 100%;
+        }
+
+        .mapping-row {
+            display: grid;
+            grid-template-columns: 1fr 60px 1fr;
+            gap: 12px;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+            border-radius: var(--radius-md);
+            margin-bottom: 8px;
+            transition: var(--transition);
+        }
+
+        .mapping-row:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: var(--border);
+        }
+
+        .mapping-row.mapped {
+            border-color: rgba(78, 205, 196, 0.3);
+            background: rgba(78, 205, 196, 0.04);
+        }
+
+        .mapping-row-header {
+            display: grid;
+            grid-template-columns: 1fr 60px 1fr;
+            gap: 12px;
+            padding: 8px 16px;
+            margin-bottom: 4px;
+        }
+
+        .mapping-row-header span {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        .block-source {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .block-preview {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .block-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .block-preview .placeholder-icon {
+            font-size: 20px;
+            opacity: 0.3;
+        }
+
+        .block-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .block-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .block-meta {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .arrow-col {
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--text-muted);
+        }
+
+        .arrow-col.mapped {
+            color: var(--accent-2);
+        }
+
+        .target-select {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239898b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        .target-select:focus {
+            outline: none;
+            border-color: var(--accent-1);
+            box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+        }
+
+        .target-select:hover {
+            border-color: var(--accent-1);
+        }
+
+        .target-select option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        /* Action Bar */
+        .action-bar {
+            background: linear-gradient(145deg, var(--bg-card), var(--bg-secondary));
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            bottom: 20px;
+            z-index: 10;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .action-left {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .action-right {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            border: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--accent-gradient);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 99, 255, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(108, 99, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border-color: var(--accent-1);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4ECDC4, #44BD77);
+            color: white;
+            box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
+        }
+
+        .btn-success:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(78, 205, 196, 0.4);
+        }
+
+        .mapping-count {
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            background: rgba(108, 99, 255, 0.1);
+            color: var(--accent-1);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 14px 20px;
+            border-radius: var(--radius-md);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+            font-size: 0.85rem;
+            animation: slideIn 0.3s ease-out;
+            max-width: 400px;
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .toast.info {
+            border-left: 4px solid var(--accent-1);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 60px;
+            height: 60px;
+            opacity: 0.3;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state p {
+            font-size: 0.85rem;
+        }
+
+        /* Search filter */
+        .search-filter {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .search-filter input {
+            width: 100%;
+            padding: 10px 14px 10px 38px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            transition: var(--transition);
+        }
+
+        .search-filter input:focus {
+            outline: none;
+            border-color: var(--accent-1);
+            box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+        }
+
+        .search-filter svg {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            color: var(--text-muted);
+        }
+
+        /* Mapping save dialog */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.visible {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            width: 440px;
+            max-width: 90vw;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal h3 {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+
+        .modal input:focus {
+            outline: none;
+            border-color: var(--accent-1);
+        }
+
+        .modal .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal select {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .upload-section {
+                grid-template-columns: 1fr;
+            }
+
+            .mapping-row {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .mapping-row-header {
+                display: none;
+            }
+
+            .arrow-col {
+                display: none;
+            }
+
+            .action-bar {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+
+        /* Hidden file input */
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Count badge */
+        .count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--accent-1);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+
+        .count-badge.green {
+            background: var(--accent-2);
+        }
+
+        /* Scale Options Section */
+        .options-section {
+            background: linear-gradient(145deg, var(--bg-card), var(--bg-secondary));
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px 24px;
+            margin-bottom: 20px;
+        }
+
+        .options-section h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .option-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            transition: var(--transition);
+        }
+
+        .option-row:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(108, 99, 255, 0.3);
+        }
+
+        .option-row.active {
+            border-color: rgba(255, 170, 68, 0.5);
+            background: rgba(255, 170, 68, 0.06);
+        }
+
+        .option-info {
+            flex: 1;
+        }
+
+        .option-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .option-label .scale-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(255, 170, 68, 0.15);
+            color: #ffaa44;
+            font-weight: 700;
+        }
+
+        .option-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 52px;
+            height: 28px;
+            flex-shrink: 0;
+            margin-left: 16px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            transition: var(--transition);
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+
+        .toggle-switch input:checked+.toggle-slider {
+            background: linear-gradient(135deg, #ffaa44, #ff7744);
+            border-color: rgba(255, 170, 68, 0.6);
+            box-shadow: 0 0 15px rgba(255, 170, 68, 0.3);
+        }
+
+        .toggle-switch input:checked+.toggle-slider::before {
+            transform: translateX(24px);
+            background: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚡ SUBSTITUIDOR DE BLOCOS DXF</h1>
+            <p>Substitua blocos do levantamento pelos blocos padrão do projeto</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <!-- Source DXF -->
+            <div class="upload-card" id="sourceCard">
+                <h3>
+                    <span class="icon source-icon">📄</span>
+                    DXF do Levantamento
+                </h3>
+                <div class="drop-zone" id="sourceDropZone" onclick="document.getElementById('sourceFileInput').click()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p>Arraste o arquivo DXF aqui ou <span class="highlight">clique para selecionar</span></p>
+                </div>
+                <input type="file" id="sourceFileInput" accept=".dxf">
+                <div class="file-info" id="sourceFileInfo">
+                    <span class="fname" id="sourceFileName"></span>
+                    <span class="fdetail" id="sourceFileDetail"></span>
+                </div>
+                <div class="stats-row" id="sourceStats" style="display:none">
+                    <span class="stat-badge" id="sourceUsedCount"></span>
+                    <span class="stat-badge green" id="sourceDefCount"></span>
+                </div>
+            </div>
+
+            <!-- Target blocks -->
+            <div class="upload-card" id="targetCard">
+                <h3>
+                    <span class="icon target-icon">🧩</span>
+                    Blocos do Projeto
+                </h3>
+                <div class="drop-zone" id="targetDropZone" onclick="document.getElementById('targetFileInput').click()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p>Arraste o DXF com blocos do projeto ou <span class="highlight">clique para selecionar</span></p>
+                </div>
+                <input type="file" id="targetFileInput" accept=".dxf">
+                <div class="file-info" id="targetFileInfo">
+                    <span class="fname" id="targetFileName"></span>
+                    <span class="fdetail" id="targetFileDetail"></span>
+                </div>
+                <div class="stats-row" id="targetStats" style="display:none">
+                    <span class="stat-badge green" id="targetBlockCount"></span>
+                </div>
+            </div>
+
+            <!-- Excel Data -->
+            <div class="upload-card" id="excelCard">
+                <h3>
+                    <span class="icon excel-icon">📊</span>
+                    Planilha Excel (Opcional)
+                </h3>
+                <div class="drop-zone" id="excelDropZone" onclick="document.getElementById('excelFileInput').click()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p>Arraste o arquivo .xlsx de projeto ou <span class="highlight">clique</span></p>
+                </div>
+                <input type="file" id="excelFileInput" accept=".xlsx">
+                <div class="file-info" id="excelFileInfo">
+                    <span class="fname" id="excelFileName"></span>
+                    <span class="fdetail" id="excelFileDetail">Excel Carregado</span>
+                </div>
+                <div class="stats-row" id="excelStats" style="display:none">
+                    <span class="stat-badge" id="excelPosteCount"></span>
+                    <span class="stat-badge green" id="excelVaoCount"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mapping Section -->
+        <div class="mapping-section" id="mappingSection">
+            <div class="mapping-header">
+                <h2>
+                    🔄 Mapeamento de Blocos
+                    <span class="mapping-count" id="mappingCountBadge">0 mapeados</span>
+                </h2>
+                <div class="mapping-controls">
+                    <button class="toggle-btn active" id="btnShowUsed" onclick="toggleView('used')">Blocos
+                        Usados</button>
+                    <button class="toggle-btn" id="btnShowAll" onclick="toggleView('all')">Todos os Blocos</button>
+                </div>
+            </div>
+
+            <div class="search-filter">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input type="text" id="searchInput" placeholder="Filtrar blocos..." oninput="filterBlocks()">
+            </div>
+
+            <div class="mapping-row-header">
+                <span>Bloco do Levantamento</span>
+                <span style="text-align:center">→</span>
+                <span>Bloco do Projeto</span>
+            </div>
+
+            <div id="mappingTable">
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <h3>Carregue os arquivos</h3>
+                    <p>Faça upload do DXF do levantamento e do DXF com os blocos do projeto</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scale Options -->
+        <div class="options-section">
+            <h3>⚙️ Opções de Exportação</h3>
+            <div class="option-row" id="scaleOptionRow">
+                <div class="option-info">
+                    <div class="option-label">
+                        Escala 1:500
+                        <span class="scale-badge">×2</span>
+                    </div>
+                    <div class="option-desc">
+                        Ative se o DXF foi desenhado em 1:500. A geometria (linhas, polylines, etc.) será escalada 2×,
+                        mas os <strong>blocos manterão seu tamanho original</strong>.
+                    </div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="scaleToggle" onchange="toggleScaleOption()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Action Bar -->
+        <div class="action-bar">
+            <div class="action-left">
+                <button class="btn btn-secondary" onclick="openSaveModal()" id="btnSave" disabled>
+                    💾 Salvar Mapeamento
+                </button>
+                <button class="btn btn-secondary" onclick="openLoadModal()" id="btnLoad">
+                    📂 Carregar Mapeamento
+                </button>
+            </div>
+            <div class="action-right">
+                <button class="btn btn-success" onclick="executeReplace()" id="btnReplace" disabled>
+                    ⚡ Substituir Blocos
+                </button>
+            </div>
+        </div>
+        <footer style="text-align: center; margin-top: 40px; padding: 20px; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border);">
+            Ferramenta feita por Valdeci Nunes
+        </footer>
+    </div>
+
+    <!-- Save Modal -->
+    <div class="modal-overlay" id="saveModal">
+        <div class="modal">
+            <h3>💾 Salvar Mapeamento</h3>
+            <input type="text" id="mappingName" placeholder="Nome do mapeamento..." value="mapeamento_padrao">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeSaveModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveMapping()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Modal -->
+    <div class="modal-overlay" id="loadModal">
+        <div class="modal">
+            <h3>📂 Carregar Mapeamento</h3>
+            <select id="mappingFileSelect">
+                <option value="">Selecione um mapeamento...</option>
+            </select>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeLoadModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="loadMapping()">Carregar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // State
+        let sourceBlocks = [];
+        let allSourceBlocks = [];
+        let targetBlocks = [];
+        let currentMapping = {};
+        let viewMode = 'used'; // 'used' or 'all'
+        let previewCache = {};
+        let useScale500 = false;
+
+        // Toggle scale option
+        function toggleScaleOption() {
+            useScale500 = document.getElementById('scaleToggle').checked;
+            document.getElementById('scaleOptionRow').classList.toggle('active', useScale500);
+        }
+
+        // Utility: show toast
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-in forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Drag & Drop setup
+        function setupDropZone(zoneId, inputId, handler) {
+            const zone = document.getElementById(zoneId);
+            const input = document.getElementById(inputId);
+
+            ['dragenter', 'dragover'].forEach(evt => {
+                zone.addEventListener(evt, (e) => {
+                    e.preventDefault();
+                    zone.classList.add('dragover');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(evt => {
+                zone.addEventListener(evt, (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('dragover');
+                });
+            });
+
+            zone.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) handler(files[0]);
+            });
+
+            input.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) handler(e.target.files[0]);
+            });
+        }
+
+        setupDropZone('sourceDropZone', 'sourceFileInput', uploadSource);
+        setupDropZone('targetDropZone', 'targetFileInput', uploadTarget);
+        setupDropZone('excelDropZone', 'excelFileInput', uploadExcel);
+
+        // Upload Excel Data
+        async function uploadExcel(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showToast('Carregando planilha Excel...', 'info');
+                const res = await fetch('/api/upload-excel', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    return;
+                }
+
+                document.getElementById('excelCard').classList.add('has-file');
+                document.getElementById('excelFileName').textContent = data.filename;
+                
+                const stats = data.summary;
+                document.getElementById('excelFileDetail').textContent = `Dados carregados`;
+                document.getElementById('excelFileInfo').classList.add('visible');
+                
+                document.getElementById('excelStats').style.display = 'flex';
+                document.getElementById('excelPosteCount').textContent = `${stats.postes} Postes`;
+                document.getElementById('excelVaoCount').textContent = `${stats.rede_mt + stats.rede_bt} Vãos`;
+
+                showToast(`✓ Excel carregado: ${stats.postes} postes, ${stats.estruturas_mt + stats.estruturas_bt} estruturas`, 'success');
+            } catch (err) {
+                showToast('Erro ao carregar Excel: ' + err.message, 'error');
+            }
+        }
+
+        // Upload source DXF
+        async function uploadSource(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showToast('Carregando DXF do levantamento...', 'info');
+                const res = await fetch('/api/upload-source', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    return;
+                }
+
+                sourceBlocks = data.used_blocks || [];
+                allSourceBlocks = data.all_blocks || [];
+
+                document.getElementById('sourceCard').classList.add('has-file');
+                document.getElementById('sourceFileName').textContent = data.filename;
+                document.getElementById('sourceFileDetail').textContent = `${sourceBlocks.length} blocos usados`;
+                document.getElementById('sourceFileInfo').classList.add('visible');
+                document.getElementById('sourceStats').style.display = 'flex';
+                document.getElementById('sourceUsedCount').textContent = `${data.total_used} blocos usados`;
+                document.getElementById('sourceDefCount').textContent = `${data.total_definitions} definições`;
+
+                showToast(`✓ Arquivo carregado: ${sourceBlocks.length} blocos identificados`, 'success');
+                renderMappingTable();
+                autoMatchBlocks();
+            } catch (err) {
+                showToast('Erro ao carregar arquivo: ' + err.message, 'error');
+            }
+        }
+
+        // Upload target blocks DXF
+        async function uploadTarget(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showToast('Carregando blocos do projeto...', 'info');
+                const res = await fetch('/api/upload-blocks', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    return;
+                }
+
+                targetBlocks = data.blocks || [];
+
+                document.getElementById('targetCard').classList.add('has-file');
+                document.getElementById('targetFileName').textContent = data.filename;
+                document.getElementById('targetFileDetail').textContent = `${targetBlocks.length} blocos`;
+                document.getElementById('targetFileInfo').classList.add('visible');
+                document.getElementById('targetStats').style.display = 'flex';
+                document.getElementById('targetBlockCount').textContent = `${data.total} blocos disponíveis`;
+
+                showToast(`✓ Blocos carregados: ${targetBlocks.length} blocos do projeto`, 'success');
+                renderMappingTable();
+                autoMatchBlocks();
+            } catch (err) {
+                showToast('Erro ao carregar blocos: ' + err.message, 'error');
+            }
+        }
+
+        // Toggle view mode
+        function toggleView(mode) {
+            viewMode = mode;
+            document.getElementById('btnShowUsed').classList.toggle('active', mode === 'used');
+            document.getElementById('btnShowAll').classList.toggle('active', mode === 'all');
+            renderMappingTable();
+        }
+
+        // Filter blocks
+        function filterBlocks() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('.mapping-row');
+            rows.forEach(row => {
+                const name = row.dataset.blockName.toLowerCase();
+                row.style.display = name.includes(query) ? '' : 'none';
+            });
+        }
+
+        // Render mapping table
+        function renderMappingTable() {
+            const table = document.getElementById('mappingTable');
+            const blocks = viewMode === 'used' ? sourceBlocks : allSourceBlocks;
+
+            if (blocks.length === 0) {
+                table.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                        <h3>Carregue os arquivos</h3>
+                        <p>Faça upload do DXF do levantamento e do DXF com os blocos do projeto</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            blocks.forEach(block => {
+                const name = block.name;
+                const count = block.count || block.usage_count || 0;
+                const entCount = block.entity_count || 0;
+                const isMapped = currentMapping[name] !== undefined;
+                const mappedTarget = isMapped ? currentMapping[name].target_block : '';
+                const isUsed = block.is_used !== undefined ? block.is_used : true;
+
+                html += `
+                    <div class="mapping-row ${isMapped ? 'mapped' : ''}" data-block-name="${name}">
+                        <div class="block-source">
+                            <div class="block-preview" id="preview-src-${name.replace(/[^a-zA-Z0-9]/g, '_')}">
+                                <span class="placeholder-icon">🔲</span>
+                            </div>
+                            <div class="block-info">
+                                <div class="block-name" title="${name}">${name}</div>
+                                <div class="block-meta">
+                                    ${count > 0 ? `${count}x instâncias · ` : ''}${entCount} entidades
+                                    ${!isUsed ? ' · <i>não usado</i>' : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="arrow-col ${isMapped ? 'mapped' : ''}">
+                            ${isMapped ? '✓' : '→'}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <select class="target-select" onchange="setMapping('${name}', this.value)" data-source="${name}">
+                                <option value="">— Selecione o bloco destino —</option>
+                                ${targetBlocks.map(tb =>
+                    `<option value="${tb.name}|${tb.file}" ${tb.name === mappedTarget ? 'selected' : ''}>${tb.name} (${tb.entity_count} ents)</option>`
+                ).join('')}
+                            </select>
+                            <div class="block-preview" id="preview-tgt-${name.replace(/[^a-zA-Z0-9]/g, '_')}" style="min-width:48px;">
+                                ${isMapped ? '<span class="placeholder-icon">🔲</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            table.innerHTML = html;
+
+            // Load previews asynchronously
+            blocks.forEach(block => {
+                loadPreview(block.name, 'source');
+                // Load target preview if mapped
+                if (currentMapping[block.name]) {
+                    const tb = currentMapping[block.name];
+                    loadPreview(block.name, 'target', tb.target_file, tb.target_block);
+                }
+            });
+
+            updateMappingCount();
+        }
+
+        // Load block preview image
+        // For target previews: blockName=sourceBlock (for DOM id), apiBlockName=targetBlock (for API URL)
+        async function loadPreview(blockName, type, targetFile, apiBlockName) {
+            const fetchName = apiBlockName || blockName;
+            const cacheKey = `${type}-${fetchName}-${targetFile || ''}`;
+            if (previewCache[cacheKey]) {
+                applyPreview(blockName, type, previewCache[cacheKey]);
+                return;
+            }
+
+            try {
+                let url = `/api/block-preview/${type}/${encodeURIComponent(fetchName)}`;
+                if (targetFile) url += `?file=${encodeURIComponent(targetFile)}`;
+
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (data.image) {
+                    previewCache[cacheKey] = data.image;
+                    applyPreview(blockName, type, data.image);
+                }
+            } catch (err) {
+                // Silent fail for preview
+            }
+        }
+
+        function applyPreview(blockName, type, imageData) {
+            const safeName = blockName.replace(/[^a-zA-Z0-9]/g, '_');
+            const el = document.getElementById(`preview-${type === 'source' ? 'src' : 'tgt'}-${safeName}`);
+            if (el) {
+                el.innerHTML = `<img src="data:image/png;base64,${imageData}" alt="${blockName}">`;
+            }
+        }
+
+        // Auto-match blocks by name (case-insensitive)
+        async function autoMatchBlocks() {
+            if (sourceBlocks.length === 0 || targetBlocks.length === 0) return;
+
+            // Build case-insensitive lookup for target blocks
+            const targetMap = {};
+            targetBlocks.forEach(tb => {
+                targetMap[tb.name.toLowerCase()] = tb;
+            });
+
+            let matched = 0;
+            const blocks = viewMode === 'used' ? sourceBlocks : allSourceBlocks;
+            for (const block of blocks) {
+                const srcLower = block.name.toLowerCase();
+                if (targetMap[srcLower] && !currentMapping[block.name]) {
+                    const tb = targetMap[srcLower];
+                    const value = `${tb.name}|${tb.file}`;
+                    await setMapping(block.name, value);
+                    matched++;
+                }
+            }
+
+            if (matched > 0) {
+                showToast(`🔗 Auto-mapeamento: ${matched} blocos com nomes iguais encontrados`, 'success');
+                renderMappingTable();
+            }
+        }
+
+        // Set mapping
+        async function setMapping(sourceBlock, value) {
+            if (!value) {
+                // Remove mapping
+                try {
+                    await fetch('/api/remove-mapping', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ source_block: sourceBlock })
+                    });
+                    delete currentMapping[sourceBlock];
+                } catch (err) { }
+            } else {
+                const [targetBlock, targetFile] = value.split('|');
+                try {
+                    const res = await fetch('/api/set-mapping', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            source_block: sourceBlock,
+                            target_file: targetFile,
+                            target_block: targetBlock
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        currentMapping = data.mapping;
+                    }
+                } catch (err) {
+                    showToast('Erro ao definir mapeamento', 'error');
+                }
+            }
+
+            // Update visual state
+            const row = document.querySelector(`.mapping-row[data-block-name="${sourceBlock}"]`);
+            if (row) {
+                row.classList.toggle('mapped', !!value);
+                const arrowCol = row.querySelector('.arrow-col');
+                arrowCol.classList.toggle('mapped', !!value);
+                arrowCol.textContent = value ? '✓' : '→';
+            }
+
+            // Load/clear target preview
+            if (value) {
+                const [targetBlock, targetFile] = value.split('|');
+                loadPreview(sourceBlock, 'target', targetFile, targetBlock);
+            } else {
+                const safeName = sourceBlock.replace(/[^a-zA-Z0-9]/g, '_');
+                const previewEl = document.getElementById(`preview-tgt-${safeName}`);
+                if (previewEl) previewEl.innerHTML = '';
+            }
+
+            updateMappingCount();
+        }
+
+        // Update mapping count
+        function updateMappingCount() {
+            const count = Object.keys(currentMapping).length;
+            document.getElementById('mappingCountBadge').textContent = `${count} mapeado${count !== 1 ? 's' : ''}`;
+            document.getElementById('btnSave').disabled = count === 0;
+            document.getElementById('btnReplace').disabled = count === 0;
+        }
+
+        // Save mapping modal
+        function openSaveModal() {
+            document.getElementById('saveModal').classList.add('visible');
+        }
+
+        function closeSaveModal() {
+            document.getElementById('saveModal').classList.remove('visible');
+        }
+
+        async function saveMapping() {
+            const name = document.getElementById('mappingName').value.trim();
+            if (!name) {
+                showToast('Digite um nome para o mapeamento', 'error');
+                return;
+            }
+            try {
+                const res = await fetch('/api/save-mapping', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`✓ Mapeamento salvo: ${data.filename}`, 'success');
+                    closeSaveModal();
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch (err) {
+                showToast('Erro ao salvar', 'error');
+            }
+        }
+
+        // Load mapping modal
+        async function openLoadModal() {
+            try {
+                const res = await fetch('/api/list-mappings');
+                const data = await res.json();
+                const select = document.getElementById('mappingFileSelect');
+                select.innerHTML = '<option value="">Selecione um mapeamento...</option>';
+                data.mappings.forEach(m => {
+                    select.innerHTML += `<option value="${m}">${m}</option>`;
+                });
+            } catch (err) { }
+            document.getElementById('loadModal').classList.add('visible');
+        }
+
+        function closeLoadModal() {
+            document.getElementById('loadModal').classList.remove('visible');
+        }
+
+        async function loadMapping() {
+            const name = document.getElementById('mappingFileSelect').value;
+            if (!name) {
+                showToast('Selecione um mapeamento', 'error');
+                return;
+            }
+            try {
+                const res = await fetch('/api/load-mapping', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentMapping = data.mapping;
+                    showToast(`✓ Mapeamento carregado: ${Object.keys(currentMapping).length} blocos`, 'success');
+                    closeLoadModal();
+                    renderMappingTable();
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch (err) {
+                showToast('Erro ao carregar', 'error');
+            }
+        }
+
+        // Execute replacement
+        async function executeReplace() {
+            const btn = document.getElementById('btnReplace');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Processando...';
+
+            try {
+                const scaleFactor = useScale500 ? 2.0 : 1.0;
+                const res = await fetch('/api/replace', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scale_factor: scaleFactor })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    let msg = `✓ Substituição concluída! ${data.result.replacements} blocos substituídos`;
+                    if (data.result.scale_factor !== 1.0) {
+                        msg += ` | ${data.result.scaled_entities} entidades escaladas (×${data.result.scale_factor})`;
+                    }
+                    showToast(msg, 'success');
+
+                    // Auto-download
+                    setTimeout(() => {
+                        window.location.href = '/api/download';
+                    }, 1000);
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch (err) {
+                showToast('Erro na substituição: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                updateMappingCount();
+            }
+        }
+        // Initialize: check for existing target blocks
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('/api/target-blocks');
+                const data = await res.json();
+                if (data.blocks && data.blocks.length > 0) {
+                    targetBlocks = data.blocks;
+                    
+                    // Update UI if we have multiple files or just one
+                    const filenames = [...new Set(targetBlocks.map(b => b.file))];
+                    if (filenames.length > 0) {
+                        document.getElementById('targetCard').classList.add('has-file');
+                        document.getElementById('targetFileName').textContent = filenames.join(', ');
+                        document.getElementById('targetFileDetail').textContent = `${targetBlocks.length} blocos`;
+                        document.getElementById('targetFileInfo').classList.add('visible');
+                        document.getElementById('targetStats').style.display = 'flex';
+                        document.getElementById('targetBlockCount').textContent = `${targetBlocks.length} blocos disponíveis`;
+                        
+                        showToast(`✓ ${targetBlocks.length} blocos pré-carregados`, 'info');
+                        renderMappingTable();
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching initial blocks:', err);
+            }
+        });
+    </script>
+</body>
+
+</html>

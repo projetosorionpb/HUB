@@ -1,0 +1,41 @@
+{
+  "hub_version": "1.0.0",
+  "modules": {
+    "substituidor_blocos": {
+      "version": "1.0.0",
+      "display_name": "Substituidor de Blocos",
+      "description": "Substitui blocos em arquivos de projeto de forma automatizada.",
+      "type": "flask",
+      "port": 5000,
+      "entry": "app.py",
+      "download_url": ""
+    },
+    "conversor_pdf": {
+      "version": "1.0.0",
+      "display_name": "Conversor PDF",
+      "description": "Converte e processa documentos para o formato PDF.",
+      "type": "flask",
+      "port": 5077,
+      "entry": "app.py",
+      "download_url": ""
+    },
+    "analise_qualidade": {
+      "version": "1.0.0",
+      "display_name": "Análise de Qualidade",
+      "description": "Dashboard de análise e controle de qualidade dos projetos.",
+      "type": "html",
+      "port": null,
+      "entry": "index.html",
+      "download_url": ""
+    },
+    "gerenciador_obras": {
+      "version": "1.0.0",
+      "display_name": "Gerenciador de Obras",
+      "description": "Kanban de gestão e acompanhamento de obras em campo.",
+      "type": "html",
+      "port": null,
+      "entry": "index.html",
+      "download_url": ""
+    }
+  }
+}
