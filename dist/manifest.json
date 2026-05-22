@@ -3,7 +3,7 @@
   "hub_download_url": "https://github.com/projetosorionpb/HUB/releases/latest/download/HubEngenharia.exe",
   "modules": {
     "substituidor_blocos": {
-      "version": "1.0.2",
+      "version": "1.0.1",
       "display_name": "Substituidor de Blocos",
       "description": "Substitui blocos padrão do DXF, pelos blocos do Projeto",
       "type": "exe",
@@ -15,7 +15,7 @@
       "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.1-Ferramentas/Substituidor_Blocos_DXF.zip"
     },
     "conversor_pdf": {
-      "version": "1.0.2",
+      "version": "1.0.1",
       "display_name": "Conversor PDF",
       "description": "Converte PDF para DWG.",
       "type": "exe",
@@ -27,7 +27,7 @@
       "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.1-Ferramentas/Conversor_PDF_para_DWG.zip"
     },
     "automacao_cad": {
-      "version": "1.0.2",
+      "version": "1.0.1",
       "display_name": "Automação CAD",
       "description": "Ferramenta para automatização de processos em arquivos CAD.",
       "type": "bat",
