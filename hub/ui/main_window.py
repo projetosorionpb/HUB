@@ -39,12 +39,23 @@ class MainWindow(QMainWindow):
         self._check_worker: CheckUpdatesWorker | None = None
         self._update_worker: UpdateWorker | None = None
 
-        self._build_ui()
-        self._apply_global_styles()
-
-        # Auto-bootstrapping do manifest.json local
+        # Auto-bootstrapping do manifest.json local ANTES de construir a UI
         delay = 2000
+        needs_bootstrap = False
+        
         if not os.path.exists(MANIFEST_PATH):
+            needs_bootstrap = True
+        else:
+            # Verifica se o manifest existente está vazio
+            try:
+                with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if not data.get("modules"):
+                        needs_bootstrap = True
+            except Exception:
+                needs_bootstrap = True
+                
+        if needs_bootstrap:
             try:
                 import sys, shutil
                 meipass = getattr(sys, '_MEIPASS', None)
@@ -56,6 +67,9 @@ class MainWindow(QMainWindow):
                 delay = 500  # Acelera a primeira verificação se é instalação nova
             except Exception:
                 pass
+
+        self._build_ui()
+        self._apply_global_styles()
 
         QTimer.singleShot(delay, self._check_updates_background)
 
