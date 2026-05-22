@@ -1,5 +1,9 @@
 """
 main_window.py — Janela principal do Hub de Engenharia. Tema EPD-PB amber/dark.
+
+As ferramentas são carregadas dinamicamente do manifest.json local.
+Módulos novos (disponíveis no servidor mas não instalados) aparecem como
+cards "fantasma" com botão INSTALAR.
 """
 import json
 from PyQt6.QtWidgets import (
@@ -10,7 +14,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, pyqtSlot
 from PyQt6.QtGui import QFont
 
-from hub.config import TOOLS, HUB_VERSION, MANIFEST_PATH
+from hub.config import HUB_VERSION, MANIFEST_PATH
 from hub.core.launcher import open_tool, stop_all
 from hub.core.updater import CheckUpdatesWorker, UpdateWorker
 from hub.ui.card_widget import ToolCard
@@ -26,13 +30,14 @@ class MainWindow(QMainWindow):
         self.resize(980, 660)
 
         self._cards: dict[str, ToolCard] = {}
+        self._card_count: int = 0
         self._pending_updates: list[dict] = []
+        self._pending_new: list[dict] = []
         self._check_worker: CheckUpdatesWorker | None = None
         self._update_worker: UpdateWorker | None = None
 
         self._build_ui()
         self._apply_global_styles()
-        self._load_local_versions()
 
         QTimer.singleShot(2000, self._check_updates_background)
 
@@ -61,26 +66,22 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(28, 0, 28, 0)
         layout.setSpacing(12)
 
-        # Título
         title = QLabel("HUB DE FERRAMENTAS")
         title.setObjectName("AppTitle")
         layout.addWidget(title)
 
-        # Badge EPD-PB
         badge = QLabel("EPD-PB")
         badge.setObjectName("EpdBadge")
         badge.setFixedSize(56, 20)
         badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(badge)
 
-        # Subtítulo
         subtitle = QLabel("Plataforma de ferramentas integradas")
         subtitle.setObjectName("AppSubtitle")
         layout.addWidget(subtitle)
 
         layout.addStretch()
 
-        # Botão verificar atualizações
         self.update_btn = QPushButton("↻  Verificar Atualizações")
         self.update_btn.setObjectName("UpdateButton")
         self.update_btn.setFixedSize(200, 32)
@@ -106,14 +107,12 @@ class MainWindow(QMainWindow):
         outer.setContentsMargins(28, 24, 28, 28)
         outer.setSpacing(0)
 
-        # Rótulo da seção
         section = QLabel("FERRAMENTAS DISPONÍVEIS")
         section.setObjectName("SectionTitle")
         outer.addWidget(section)
 
         outer.addItem(QSpacerItem(0, 14, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
-        # Separador
         sep = QFrame()
         sep.setObjectName("Separator")
         sep.setFixedHeight(1)
@@ -121,21 +120,41 @@ class MainWindow(QMainWindow):
 
         outer.addItem(QSpacerItem(0, 18, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
-        # Grid 2 colunas
+        # Grid 2 colunas — preenchido com módulos do manifest local
         self.grid = QGridLayout()
         self.grid.setSpacing(12)
-
-        for idx, (module_name, cfg) in enumerate(TOOLS.items()):
-            card = ToolCard(module_name, cfg)
-            card.open_requested.connect(self._on_open_tool)
-            self._cards[module_name] = card
-            row, col = divmod(idx, 2)
-            self.grid.addWidget(card, row, col)
-
         outer.addLayout(self.grid)
-        outer.addStretch()
 
+        self._load_cards_from_manifest()
+
+        outer.addStretch()
         return scroll
+
+    def _load_cards_from_manifest(self):
+        """Lê o manifest.json local e cria um card para cada módulo."""
+        try:
+            with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+                manifest = json.load(f)
+            tools = manifest.get("modules", {})
+        except (FileNotFoundError, json.JSONDecodeError):
+            tools = {}
+
+        for module_name, cfg in tools.items():
+            self._add_card(module_name, cfg, installed=True)
+
+    def _add_card(self, module_name: str, cfg: dict, installed: bool = True) -> ToolCard:
+        """Cria e adiciona um card ao grid. Retorna o card criado."""
+        card = ToolCard(module_name, cfg)
+        card.open_requested.connect(self._on_open_tool)
+        card.install_requested.connect(self._on_install_tool)
+        if not installed:
+            card.set_not_installed(True)
+
+        self._cards[module_name] = card
+        row, col = divmod(self._card_count, 2)
+        self.grid.addWidget(card, row, col)
+        self._card_count += 1
+        return card
 
     # ── Status bar ────────────────────────────────────────────
     def _build_statusbar(self) -> QWidget:
@@ -158,19 +177,6 @@ class MainWindow(QMainWindow):
         return bar
 
     # ──────────────────────────────────────────────────────────
-    # Versões locais
-    # ──────────────────────────────────────────────────────────
-    def _load_local_versions(self):
-        try:
-            with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
-                manifest = json.load(f)
-            for name, data in manifest.get("modules", {}).items():
-                if name in self._cards:
-                    self._cards[name].set_version(data.get("version", "?"))
-        except (FileNotFoundError, json.JSONDecodeError):
-            pass
-
-    # ──────────────────────────────────────────────────────────
     # Atualizações
     # ──────────────────────────────────────────────────────────
     def _check_updates_background(self):
@@ -185,34 +191,56 @@ class MainWindow(QMainWindow):
     def _on_check_updates_clicked(self):
         self._check_updates_background()
 
-    @pyqtSlot(list)
-    def _on_updates_found(self, updates: list):
+    @pyqtSlot(dict)
+    def _on_updates_found(self, result: dict):
+        updates: list[dict] = result.get("updates", [])
+        new_modules: list[dict] = result.get("new", [])
+
         self._pending_updates = updates
+        self._pending_new = new_modules
         self.update_btn.setEnabled(True)
-        if not updates:
+
+        if not updates and not new_modules:
             self._set_status("✅  Todos os módulos estão atualizados.")
             return
-        names = ", ".join(u["display_name"] for u in updates)
-        self._set_status(f"  Atualizações disponíveis: {names}")
+
+        # Marca cards existentes com atualização
         for u in updates:
             if u["name"] in self._cards:
                 self._cards[u["name"]].set_update_available(True)
-        reply = QMessageBox.question(
-            self, "Atualizações disponíveis",
-            f"{len(updates)} atualização(ões) encontrada(s):\n{names}\n\nDeseja instalar agora?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            self._run_update(updates)
+
+        # Adiciona cards para módulos novos (não instalados)
+        for m in new_modules:
+            if m["name"] not in self._cards:
+                self._add_card(m["name"], m["cfg"], installed=False)
+
+        # Monta mensagem de status
+        parts = []
+        if updates:
+            parts.append(f"{len(updates)} atualização(ões)")
+        if new_modules:
+            parts.append(f"{len(new_modules)} programa(s) novo(s)")
+        self._set_status(f"  {' | '.join(parts)} disponível(is).")
+
+        # Se há atualizações de versão, pergunta se deseja instalar agora
+        if updates:
+            names = ", ".join(u["display_name"] for u in updates)
+            reply = QMessageBox.question(
+                self, "Atualizações disponíveis",
+                f"{len(updates)} atualização(ões) encontrada(s):\n{names}\n\nDeseja instalar agora?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self._run_update(updates)
 
     @pyqtSlot(str)
     def _on_update_check_error(self, msg: str):
         self.update_btn.setEnabled(True)
-        self._set_status(f"Sem conexão com o servidor de atualizações.")
+        self._set_status("Sem conexão com o servidor de atualizações.")
 
-    def _run_update(self, updates: list):
+    def _run_update(self, items: list[dict]):
         dialog = UpdateDialog(self)
-        self._update_worker = UpdateWorker(updates)
+        self._update_worker = UpdateWorker(items)
         self._update_worker.log.connect(dialog.append_log)
         self._update_worker.progress.connect(dialog.set_progress)
         self._update_worker.finished.connect(dialog.on_finished)
@@ -223,27 +251,63 @@ class MainWindow(QMainWindow):
     @pyqtSlot(bool)
     def _on_update_finished(self, success: bool):
         if success:
-            self._load_local_versions()
-            for card in self._cards.values():
+            # Relê manifest local para saber o que foi instalado
+            try:
+                with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+                    manifest = json.load(f)
+                installed_names = set(manifest.get("modules", {}).keys())
+            except Exception:
+                installed_names = set()
+
+            for name, card in self._cards.items():
                 card.set_update_available(False)
+                if name in installed_names:
+                    card.set_not_installed(False)
+
             self._pending_updates = []
+            self._pending_new = []
             self._set_status("✅  Módulos atualizados com sucesso.")
 
     # ──────────────────────────────────────────────────────────
-    # Abertura de ferramentas
+    # Abertura e instalação de ferramentas
     # ──────────────────────────────────────────────────────────
     @pyqtSlot(str)
     def _on_open_tool(self, module_name: str):
-        cfg = TOOLS.get(module_name)
-        if not cfg:
+        card = self._cards.get(module_name)
+        if not card:
             return
-        self._set_status(f"Iniciando {cfg['display_name']}…")
+        cfg = card.cfg
+        self._set_status(f"Iniciando {cfg.get('display_name', module_name)}…")
         ok, msg = open_tool(module_name, cfg)
         if ok:
-            self._set_status(f"✅  {cfg['display_name']} iniciado.")
+            self._set_status(f"✅  {cfg.get('display_name', module_name)} iniciado.")
         else:
             QMessageBox.warning(self, "Módulo não encontrado", msg)
-            self._set_status(f"  Falha ao abrir {cfg['display_name']}.")
+            self._set_status(f"  Falha ao abrir {cfg.get('display_name', module_name)}.")
+
+    @pyqtSlot(str)
+    def _on_install_tool(self, module_name: str):
+        """Inicia o download e instalação de um módulo novo."""
+        pending = next(
+            (m for m in self._pending_new if m["name"] == module_name), None
+        )
+        if not pending:
+            QMessageBox.warning(
+                self, "Erro",
+                "Não foi possível encontrar os dados de instalação.\n"
+                "Clique em 'Verificar Atualizações' e tente novamente."
+            )
+            return
+
+        item = {
+            "name": module_name,
+            "display_name": pending["display_name"],
+            "remote": pending["version"],
+            "download_url": pending["download_url"],
+            "cfg": pending["cfg"],
+            "is_new": True,
+        }
+        self._run_update([item])
 
     def _set_status(self, msg: str):
         self.status_label.setText(msg)
@@ -296,9 +360,7 @@ class MainWindow(QMainWindow):
                 font-weight: 700;
                 letter-spacing: 1px;
             }
-            QPushButton#UpdateButton:hover {
-                background: #fbbf24;
-            }
+            QPushButton#UpdateButton:hover   { background: #fbbf24; }
             QPushButton#UpdateButton:disabled {
                 background: #1a1f2e;
                 color: #2e3548;
@@ -319,9 +381,7 @@ class MainWindow(QMainWindow):
             QScrollBar::add-line:vertical,
             QScrollBar::sub-line:vertical { height: 0; }
 
-            QLabel {
-                background: transparent;
-            }
+            QLabel { background: transparent; }
 
             QLabel#SectionTitle {
                 color: #d1d5db;
@@ -329,9 +389,7 @@ class MainWindow(QMainWindow):
                 font-weight: 700;
                 letter-spacing: 2px;
             }
-            QFrame#Separator {
-                background: #1a1f2e;
-            }
+            QFrame#Separator { background: #1a1f2e; }
 
             /* ── Status bar ─────────────────────────────────── */
             QFrame#StatusBar {
@@ -348,9 +406,7 @@ class MainWindow(QMainWindow):
             }
 
             /* ── QMessageBox ────────────────────────────────── */
-            QMessageBox {
-                background: #0d1017;
-            }
+            QMessageBox { background: #0d1017; }
             QMessageBox QLabel {
                 color: #c0c8d8;
                 font-size: 12px;
@@ -370,7 +426,5 @@ class MainWindow(QMainWindow):
                 border: none;
                 font-weight: 700;
             }
-            QMessageBox QPushButton:default:hover {
-                background: #fbbf24;
-            }
+            QMessageBox QPushButton:default:hover { background: #fbbf24; }
         """)

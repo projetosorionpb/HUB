@@ -1,11 +1,11 @@
 """
-updater.py — Verificação e download de atualizações via GitHub Releases.
+updater.py — Verificação e download de atualizações via manifest.json remoto no GitHub.
 
 Fluxo:
-  1. Lê o manifest.json local para obter as versões instaladas.
-  2. Consulta a GitHub Releases API para obter as versões mais recentes.
-  3. Emite sinais PyQt para atualizar a UI com o progresso.
-  4. Baixa e extrai os .zip dos módulos desatualizados.
+  1. Busca manifest.json da branch main do repositório GitHub.
+  2. Compara com o manifest.json local.
+  3. Emite sinais PyQt para atualizar a UI.
+  4. Baixa e extrai .zip dos módulos desatualizados OU novos.
 """
 import json
 import os
@@ -17,7 +17,7 @@ import requests
 from packaging.version import Version
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from hub.config import GITHUB_API_BASE, MODULES_DIR, MANIFEST_PATH
+from hub.config import MANIFEST_RAW_URL, MODULES_DIR, MANIFEST_PATH
 
 
 def _load_local_manifest() -> dict:
@@ -33,59 +33,72 @@ def _save_local_manifest(data: dict) -> None:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-def check_updates_sync() -> list[dict]:
+def fetch_remote_manifest() -> dict:
+    """Busca o manifest.json da branch main do GitHub."""
+    resp = requests.get(MANIFEST_RAW_URL, timeout=10)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def check_updates_sync() -> dict:
     """
-    Verifica atualizações disponíveis de forma síncrona.
-    Retorna lista de módulos com update disponível:
-      [{"name": ..., "local": ..., "remote": ..., "download_url": ...}]
+    Compara manifest local com o remoto e retorna:
+      {
+        "updates": [{"name", "display_name", "local", "remote", "download_url"}],
+        "new":     [{"name", "display_name", "version", "download_url", "cfg"}]
+      }
     """
-    manifest = _load_local_manifest()
-    updates = []
+    local = _load_local_manifest()
+    result: dict = {"updates": [], "new": []}
 
     try:
-        response = requests.get(
-            f"{GITHUB_API_BASE}/releases/latest",
-            timeout=10,
-            headers={"Accept": "application/vnd.github+json"},
-        )
-        if response.status_code != 200:
-            return []
+        remote = fetch_remote_manifest()
+    except Exception:
+        return result
 
-        release = response.json()
-        remote_version = release.get("tag_name", "").lstrip("v")
-        assets: list[dict] = release.get("assets", [])
+    local_modules: dict = local.get("modules", {})
+    remote_modules: dict = remote.get("modules", {})
 
-        for module_name, module_data in manifest.get("modules", {}).items():
-            local_version = module_data.get("version", "0.0.0")
+    for name, remote_data in remote_modules.items():
+        remote_ver = remote_data.get("version", "0.0.0")
+        download_url = remote_data.get("download_url", "")
 
+        if not download_url:
+            # Módulo sem URL de download ainda — ignora para instalação automática
+            continue
+
+        if name not in local_modules:
+            # Módulo novo: não existe localmente
+            result["new"].append({
+                "name": name,
+                "display_name": remote_data.get("display_name", name),
+                "version": remote_ver,
+                "download_url": download_url,
+                "cfg": remote_data,
+            })
+        else:
+            # Módulo existente: verifica se tem versão mais nova
+            local_ver = local_modules[name].get("version", "0.0.0")
             try:
-                if Version(remote_version) > Version(local_version):
-                    # Procura o asset correspondente ao módulo
-                    asset_url = next(
-                        (a["browser_download_url"] for a in assets
-                         if module_name in a["name"] and a["name"].endswith(".zip")),
-                        None,
-                    )
-                    if asset_url:
-                        updates.append({
-                            "name": module_name,
-                            "display_name": module_data.get("display_name", module_name),
-                            "local": local_version,
-                            "remote": remote_version,
-                            "download_url": asset_url,
-                        })
+                if Version(remote_ver) > Version(local_ver):
+                    result["updates"].append({
+                        "name": name,
+                        "display_name": remote_data.get("display_name", name),
+                        "local": local_ver,
+                        "remote": remote_ver,
+                        "download_url": download_url,
+                        "is_new": False,
+                    })
             except Exception:
                 pass
 
-    except requests.RequestException:
-        pass
-
-    return updates
+    return result
 
 
 class UpdateWorker(QThread):
     """
-    QThread que executa download e instalação de atualizações em background.
+    QThread que executa download e instalação de módulos em background.
+    Suporta tanto atualizações quanto instalações novas (is_new=True).
 
     Sinais:
         log(str)        — mensagem de progresso
@@ -96,12 +109,17 @@ class UpdateWorker(QThread):
     progress = pyqtSignal(int)
     finished = pyqtSignal(bool)
 
-    def __init__(self, updates: list[dict], parent=None):
+    def __init__(self, items: list[dict], parent=None):
+        """
+        items: lista de dicts com chaves:
+          name, display_name, download_url, remote (versão), is_new (bool, opcional)
+          Para módulos novos: também precisa de 'cfg' (dict completo do manifest remoto)
+        """
         super().__init__(parent)
-        self.updates = updates
+        self.items = items
 
     def run(self):
-        total = len(self.updates)
+        total = len(self.items)
         if total == 0:
             self.log.emit("Nenhuma atualização para instalar.")
             self.finished.emit(True)
@@ -110,12 +128,14 @@ class UpdateWorker(QThread):
         manifest = _load_local_manifest()
         success = True
 
-        for idx, update in enumerate(self.updates):
-            name = update["name"]
-            display = update["display_name"]
-            url = update["download_url"]
-            remote_ver = update["remote"]
+        for idx, item in enumerate(self.items):
+            name = item["name"]
+            display = item["display_name"]
+            url = item["download_url"]
+            remote_ver = item.get("remote") or item.get("version", "?")
+            is_new = item.get("is_new", False)
 
+            action = "Instalando" if is_new else "Atualizando"
             self.log.emit(f"⬇️  Baixando {display} v{remote_ver}...")
             self.progress.emit(int((idx / total) * 80))
 
@@ -131,31 +151,38 @@ class UpdateWorker(QThread):
                     for chunk in resp.iter_content(chunk_size=8192):
                         f.write(chunk)
 
-                self.log.emit(f"📦  Instalando {display}...")
+                self.log.emit(f"📦  {action} {display}...")
 
-                # Extração
                 module_dir = Path(MODULES_DIR) / name
                 backup_dir = Path(MODULES_DIR) / f"{name}_backup"
 
-                # Backup do módulo atual
-                if module_dir.exists():
+                # Backup do módulo atual (só para updates)
+                if not is_new and module_dir.exists():
                     if backup_dir.exists():
                         shutil.rmtree(backup_dir)
                     shutil.copytree(module_dir, backup_dir)
 
+                module_dir.mkdir(parents=True, exist_ok=True)
                 with zipfile.ZipFile(zip_path, "r") as zf:
                     zf.extractall(str(module_dir))
 
                 zip_path.unlink(missing_ok=True)
 
-                # Atualiza manifest local
-                if name in manifest.get("modules", {}):
-                    manifest["modules"][name]["version"] = remote_ver
-
-                self.log.emit(f"✅  {display} atualizado para v{remote_ver}")
+                # Atualiza/cria entrada no manifest local
+                if is_new:
+                    cfg = item.get("cfg", {})
+                    manifest.setdefault("modules", {})[name] = {
+                        **cfg,
+                        "version": remote_ver,
+                    }
+                    self.log.emit(f"✅  {display} v{remote_ver} instalado!")
+                else:
+                    if name in manifest.get("modules", {}):
+                        manifest["modules"][name]["version"] = remote_ver
+                    self.log.emit(f"✅  {display} atualizado para v{remote_ver}")
 
             except Exception as e:
-                self.log.emit(f"❌  Erro ao atualizar {display}: {e}")
+                self.log.emit(f"❌  Erro ao processar {display}: {e}")
                 success = False
 
                 # Restaura backup se existir
@@ -174,18 +201,18 @@ class UpdateWorker(QThread):
 
 class CheckUpdatesWorker(QThread):
     """
-    QThread leve que só verifica se há atualizações disponíveis.
+    QThread leve que verifica atualizações e novos módulos disponíveis.
 
     Sinais:
-        result(list)    — lista de updates disponíveis
-        error(str)      — mensagem de erro, se houver
+        result(dict)  — {"updates": [...], "new": [...]}
+        error(str)    — mensagem de erro, se houver
     """
-    result = pyqtSignal(list)
+    result = pyqtSignal(dict)
     error = pyqtSignal(str)
 
     def run(self):
         try:
-            updates = check_updates_sync()
-            self.result.emit(updates)
+            data = check_updates_sync()
+            self.result.emit(data)
         except Exception as e:
             self.error.emit(str(e))
