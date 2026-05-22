@@ -1,5 +1,5 @@
 {
-  "hub_version": "1.0.1",
+  "hub_version": "1.0.2",
   "hub_download_url": "https://github.com/projetosorionpb/HUB/releases/latest/download/HubEngenharia.exe",
   "modules": {
     "substituidor_blocos": {
@@ -27,16 +27,16 @@
       "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.0-ferramentas/Conversor_PDF_para_DWG.zip"
     },
     "automacao_cad": {
-      "version": "1.0.0",
+      "version": "1.0.1",
       "display_name": "Automação CAD",
       "description": "Ferramenta para automatização de processos em arquivos CAD.",
-      "type": "exe",
-      "exe_name": "Automacao_CAD.exe",
-      "port": 5002,
-      "entry": "Automacao_CAD.exe",
+      "type": "bat",
+      "exe_name": null,
+      "port": null,
+      "entry": "INSTALAR_SCRIPTS.bat",
       "color": "#ef4444",
       "icon_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><circle cx=\"32\" cy=\"32\" r=\"10\" fill=\"none\" stroke=\"#ef4444\" stroke-width=\"3\"/><path d=\"M32 6 L32 14 M32 50 L32 58 M6 32 L14 32 M50 32 L58 32\" stroke=\"#ef4444\" stroke-width=\"3\" stroke-linecap=\"round\"/><path d=\"M14.6 14.6 L20.2 20.2 M43.8 43.8 L49.4 49.4 M49.4 14.6 L43.8 20.2 M20.2 43.8 L14.6 49.4\" stroke=\"#ef4444\" stroke-width=\"3\" stroke-linecap=\"round\"/><circle cx=\"32\" cy=\"32\" r=\"4\" fill=\"#ef4444\"/></svg>",
-      "download_url": ""
+      "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.1-Ferramentas/Automacao_CAD.zip"
     },
     "gerenciador_obras": {
       "version": "1.0.0",

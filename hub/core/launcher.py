@@ -39,6 +39,8 @@ def open_tool(module_name: str, tool_cfg: dict) -> tuple[bool, str]:
         return _open_html(module_name, tool_cfg)
     elif kind == "web":
         return _open_web(module_name, tool_cfg)
+    elif kind == "bat":
+        return _open_bat(module_name, tool_cfg)
     else:  # flask (modo dev com Python)
         return _open_flask_dev(module_name, tool_cfg)
 
@@ -101,6 +103,29 @@ def _open_html(module_name: str, cfg: dict) -> tuple[bool, str]:
         return True, f"{cfg['display_name']} aberto."
     except Exception as e:
         return False, f"Erro ao abrir {cfg['display_name']}:\n{e}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tipo BAT — script em lote do Windows
+# ──────────────────────────────────────────────────────────────────────────────
+def _open_bat(module_name: str, cfg: dict) -> tuple[bool, str]:
+    """Abre um arquivo .bat em uma nova janela de terminal."""
+    entry_path = _module_path(module_name) / cfg["entry"]
+
+    if not entry_path.exists():
+        return False, (
+            f"Módulo não encontrado:\n{entry_path}\n\n"
+            f"Copie a pasta do módulo para:\n{_module_path(module_name)}"
+        )
+
+    try:
+        if sys.platform == "win32":
+            os.startfile(str(entry_path))
+        else:
+            subprocess.Popen(["sh", str(entry_path)])
+        return True, f"{cfg['display_name']} executado."
+    except Exception as e:
+        return False, f"Erro ao executar {cfg['display_name']}:\n{e}"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
