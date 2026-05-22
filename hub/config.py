@@ -34,4 +34,4 @@ if not os.path.exists(MODULES_DIR):
     os.makedirs(MODULES_DIR, exist_ok=True)
 
 # Versão atual do hub
-HUB_VERSION = "1.0.0"
+HUB_VERSION = "1.0.1"

@@ -1,5 +1,5 @@
 {
-  "hub_version": "1.0.0",
+  "hub_version": "1.0.1",
   "hub_download_url": "https://github.com/projetosorionpb/HUB/releases/latest/download/HubEngenharia.exe",
   "modules": {
     "substituidor_blocos": {

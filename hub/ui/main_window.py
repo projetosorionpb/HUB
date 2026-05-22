@@ -227,20 +227,33 @@ class MainWindow(QMainWindow):
     def _on_updates_found(self, result: dict):
         updates: list[dict] = result.get("updates", [])
         new_modules: list[dict] = result.get("new", [])
+        metadata_updates: list[dict] = result.get("metadata_updates", [])
 
         self._pending_updates = updates
         self._pending_new = new_modules
         self.update_btn.setEnabled(True)
 
-        # Processa os módulos web (auto_register) imediatamente
+        # Processa os módulos web (auto_register) e atualizações de metadados imediatamente
         auto_registered = False
-        if new_modules or updates:
+        if new_modules or updates or metadata_updates:
             try:
                 with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
                     manifest = json.load(f)
             except Exception:
                 manifest = {"hub_version": HUB_VERSION, "modules": {}}
-                
+
+            # Atualizações de metadados em background (ex: descrição, exibição, etc. sem mudar versão)
+            if metadata_updates:
+                for item in metadata_updates:
+                    name = item["name"]
+                    cfg = item["cfg"]
+                    if name in manifest.get("modules", {}):
+                        current_ver = manifest["modules"][name].get("version", "1.0.0")
+                        manifest["modules"][name] = {**cfg, "version": current_ver}
+                        auto_registered = True
+                        if name in self._cards:
+                            self._cards[name].update_cfg(manifest["modules"][name])
+
             for lst in (new_modules, updates):
                 # Iterar com cópia [:] pois removeremos itens
                 for item in lst[:]:
@@ -259,7 +272,7 @@ class MainWindow(QMainWindow):
                         if name not in self._cards:
                             self._add_card(name, cfg, installed=True)
                         else:
-                            self._cards[name].cfg = cfg
+                            self._cards[name].update_cfg(cfg)
                             self._cards[name].set_update_available(False)
                             self._cards[name].set_not_installed(False)
                             

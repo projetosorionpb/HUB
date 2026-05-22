@@ -79,6 +79,13 @@ class ToolCard(QFrame):
     def set_version(self, version: str):
         pass  # versão removida da UI visual
 
+    def update_cfg(self, new_cfg: dict):
+        """Atualiza as configurações do card e os textos exibidos."""
+        self.cfg = new_cfg
+        self.name_label.setText(self.cfg.get("display_name", self.module_name).upper())
+        self.desc_label.setText(self.cfg.get("description", ""))
+
+
     def set_update_available(self, available: bool):
         if self._not_installed:
             return  # prioridade ao estado "não instalado"

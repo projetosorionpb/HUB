@@ -49,7 +49,7 @@ def check_updates_sync() -> dict:
       }
     """
     local = _load_local_manifest()
-    result: dict = {"updates": [], "new": []}
+    result: dict = {"updates": [], "new": [], "metadata_updates": []}
 
     try:
         remote = fetch_remote_manifest()
@@ -112,6 +112,19 @@ def check_updates_sync() -> dict:
                         "cfg": remote_data, # Necessário para o bug fix 5.1 e para web update
                         "auto_register": is_web
                     })
+                elif Version(remote_ver) == Version(local_ver):
+                    # Compara se houve alguma alteração de metadados relevantes
+                    metadata_keys = ["display_name", "description", "type", "exe_name", "port", "entry", "color", "icon_svg", "download_url"]
+                    changed = False
+                    for key in metadata_keys:
+                        if local_modules[name].get(key) != remote_data.get(key):
+                            changed = True
+                            break
+                    if changed:
+                        result["metadata_updates"].append({
+                            "name": name,
+                            "cfg": remote_data
+                        })
             except Exception:
                 pass
 
@@ -201,6 +214,8 @@ class UpdateWorker(QThread):
                     self.log.emit(f"✅  {display} v{remote_ver} instalado!")
                 else:
                     if name in manifest.get("modules", {}):
+                        cfg = item.get("cfg", {})
+                        manifest["modules"][name].update(cfg)
                         manifest["modules"][name]["version"] = remote_ver
                     self.log.emit(f"✅  {display} atualizado para v{remote_ver}")
 
