@@ -31,12 +31,19 @@ class HubSelfUpdateWorker(QThread):
 
             self.log.emit("Baixando nova versão do Hub...")
             
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            
+            is_zip = self.download_url.lower().endswith(".zip")
+            download_dest = f"{exe_path}.zip" if is_zip else new_exe_path
+
             # Download
-            with requests.get(self.download_url, stream=True, timeout=15) as r:
+            with requests.get(self.download_url, headers=headers, stream=True, timeout=60) as r:
                 r.raise_for_status()
                 total_length = r.headers.get('content-length')
                 
-                with open(new_exe_path, 'wb') as f:
+                with open(download_dest, 'wb') as f:
                     if total_length is None:
                         f.write(r.content)
                         self.progress.emit(100)
@@ -48,6 +55,26 @@ class HubSelfUpdateWorker(QThread):
                             f.write(data)
                             done = int(100 * dl / total_length)
                             self.progress.emit(done)
+                            
+            if is_zip:
+                self.log.emit("Extraindo executável do arquivo compactado...")
+                import zipfile
+                with zipfile.ZipFile(download_dest, "r") as zf:
+                    exe_in_zip = None
+                    for name in zf.namelist():
+                        if name.lower().endswith(".exe"):
+                            exe_in_zip = name
+                            break
+                    if not exe_in_zip:
+                        raise Exception("Nenhum arquivo executável (.exe) encontrado dentro do ZIP de atualização.")
+                    
+                    with open(new_exe_path, "wb") as f_out:
+                        f_out.write(zf.read(exe_in_zip))
+                
+                try:
+                    os.remove(download_dest)
+                except Exception:
+                    pass
                             
             self.log.emit("Download concluído. Preparando substituição...")
 
