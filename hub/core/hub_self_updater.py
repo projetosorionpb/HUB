@@ -12,6 +12,7 @@ class HubSelfUpdateWorker(QThread):
     progress = pyqtSignal(int)
     log = pyqtSignal(str)
     finished = pyqtSignal(bool)
+    request_close = pyqtSignal()  # Sinal para fechar o app antes de executar o bat
 
     def __init__(self, download_url: str):
         super().__init__()
@@ -26,8 +27,10 @@ class HubSelfUpdateWorker(QThread):
                 return
 
             exe_path = sys.executable
-            new_exe_path = f"{exe_path}.new"
-            bat_path = os.path.join(os.path.dirname(exe_path), "update_hub.bat")
+            exe_dir = os.path.dirname(exe_path)
+            exe_name = os.path.basename(exe_path)
+            new_exe_path = os.path.join(exe_dir, f"{exe_name}.new")
+            bat_path = os.path.join(exe_dir, "update_hub.bat")
 
             self.log.emit("Baixando nova versão do Hub...")
             
@@ -36,7 +39,7 @@ class HubSelfUpdateWorker(QThread):
             }
             
             is_zip = self.download_url.lower().endswith(".zip")
-            download_dest = f"{exe_path}.zip" if is_zip else new_exe_path
+            download_dest = os.path.join(exe_dir, f"{exe_name}.zip") if is_zip else new_exe_path
 
             # Download
             with requests.get(self.download_url, headers=headers, stream=True, timeout=60) as r:
@@ -78,26 +81,48 @@ class HubSelfUpdateWorker(QThread):
                             
             self.log.emit("Download concluído. Preparando substituição...")
 
+            # Usa o PID do processo atual para o taskkill
+            pid = os.getpid()
+
             # Cria script .bat para substituir
+            # O bat mata o processo pelo PID, espera, substitui e reinicia
             bat_content = f"""@echo off
 echo Atualizando Hub de Engenharia...
-timeout /t 2 /nobreak > nul
-del "{exe_path}"
-ren "{new_exe_path}" "{os.path.basename(exe_path)}"
+echo Encerrando processo (PID {pid})...
+taskkill /F /PID {pid} >nul 2>&1
+timeout /t 3 /nobreak >nul
+echo Substituindo executavel...
+:retry
+del "{exe_path}" >nul 2>&1
+if exist "{exe_path}" (
+    echo Aguardando liberacao do arquivo...
+    timeout /t 2 /nobreak >nul
+    goto retry
+)
+ren "{new_exe_path}" "{exe_name}"
+echo Iniciando nova versao...
 start "" "{exe_path}"
 del "%~f0"
 """
             with open(bat_path, "w", encoding="utf-8") as f:
                 f.write(bat_content)
 
-            self.log.emit("Script criado. O Hub será reiniciado.")
-            time.sleep(1)
+            self.log.emit("Hub será reiniciado em instantes...")
+            self.progress.emit(100)
             
-            # Executa script
-            subprocess.Popen([bat_path], creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
+            # Executa script bat (ele vai matar este processo)
+            subprocess.Popen(
+                [bat_path],
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+                cwd=exe_dir
+            )
+            
+            # Dá tempo para o bat iniciar antes de sinalizar
+            time.sleep(1)
             
             self.finished.emit(True)
             
         except Exception as e:
             self.log.emit(f"Erro na auto-atualização do Hub:\n{e}")
             self.finished.emit(False)
+
