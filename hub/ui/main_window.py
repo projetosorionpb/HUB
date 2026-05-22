@@ -46,8 +46,13 @@ class MainWindow(QMainWindow):
         delay = 2000
         if not os.path.exists(MANIFEST_PATH):
             try:
-                with open(MANIFEST_PATH, "w", encoding="utf-8") as f:
-                    json.dump({"hub_version": HUB_VERSION, "modules": {}}, f, indent=2)
+                import sys, shutil
+                meipass = getattr(sys, '_MEIPASS', None)
+                if meipass and os.path.exists(os.path.join(meipass, "manifest.json")):
+                    shutil.copyfile(os.path.join(meipass, "manifest.json"), MANIFEST_PATH)
+                else:
+                    with open(MANIFEST_PATH, "w", encoding="utf-8") as f:
+                        json.dump({"hub_version": HUB_VERSION, "modules": {}}, f, indent=2)
                 delay = 500  # Acelera a primeira verificação se é instalação nova
             except Exception:
                 pass
