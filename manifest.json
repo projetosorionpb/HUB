@@ -3,7 +3,7 @@
   "hub_download_url": "https://github.com/projetosorionpb/HUB/releases/latest/download/HubEngenharia.exe",
   "modules": {
     "substituidor_blocos": {
-      "version": "1.0.0",
+      "version": "1.0.1",
       "display_name": "Substituidor de Blocos",
       "description": "Substitui blocos em arquivos de projeto de forma automatizada.",
       "type": "exe",
@@ -15,7 +15,7 @@
       "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.0-ferramentas/substituidor_blocos.zip"
     },
     "conversor_pdf": {
-      "version": "1.0.0",
+      "version": "1.0.1",
       "display_name": "Conversor PDF",
       "description": "Converte e processa documentos para o formato PDF.",
       "type": "exe",
