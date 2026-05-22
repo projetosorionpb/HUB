@@ -6,6 +6,7 @@ Módulos novos (disponíveis no servidor mas não instalados) aparecem como
 cards "fantasma" com botão INSTALAR.
 """
 import json
+import os
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QScrollArea, QGridLayout,
@@ -17,8 +18,10 @@ from PyQt6.QtGui import QFont
 from hub.config import HUB_VERSION, MANIFEST_PATH
 from hub.core.launcher import open_tool, stop_all
 from hub.core.updater import CheckUpdatesWorker, UpdateWorker
+from hub.core.hub_self_updater import HubSelfUpdateWorker
 from hub.ui.card_widget import ToolCard
 from hub.ui.update_dialog import UpdateDialog
+from hub.ui.toast_widget import ToastNotification
 
 
 class MainWindow(QMainWindow):
@@ -39,7 +42,17 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._apply_global_styles()
 
-        QTimer.singleShot(2000, self._check_updates_background)
+        # Auto-bootstrapping do manifest.json local
+        delay = 2000
+        if not os.path.exists(MANIFEST_PATH):
+            try:
+                with open(MANIFEST_PATH, "w", encoding="utf-8") as f:
+                    json.dump({"hub_version": HUB_VERSION, "modules": {}}, f, indent=2)
+                delay = 500  # Acelera a primeira verificação se é instalação nova
+            except Exception:
+                pass
+
+        QTimer.singleShot(delay, self._check_updates_background)
 
     # ──────────────────────────────────────────────────────────
     # Construção da UI
@@ -200,8 +213,65 @@ class MainWindow(QMainWindow):
         self._pending_new = new_modules
         self.update_btn.setEnabled(True)
 
+        # Processa os módulos web (auto_register) imediatamente
+        auto_registered = False
+        if new_modules or updates:
+            try:
+                with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+                    manifest = json.load(f)
+            except Exception:
+                manifest = {"hub_version": HUB_VERSION, "modules": {}}
+                
+            for lst in (new_modules, updates):
+                # Iterar com cópia [:] pois removeremos itens
+                for item in lst[:]:
+                    if item.get("auto_register"):
+                        name = item["name"]
+                        cfg = item["cfg"]
+                        
+                        # Atualiza manifest
+                        manifest.setdefault("modules", {})[name] = {
+                            **cfg,
+                            "version": item.get("remote", item.get("version", "0.0.0"))
+                        }
+                        auto_registered = True
+                        
+                        # Adiciona ou atualiza card
+                        if name not in self._cards:
+                            self._add_card(name, cfg, installed=True)
+                        else:
+                            self._cards[name].cfg = cfg
+                            self._cards[name].set_update_available(False)
+                            self._cards[name].set_not_installed(False)
+                            
+                        # Remove da lista para não passar pro UpdateWorker
+                        lst.remove(item)
+                        
+            if auto_registered:
+                with open(MANIFEST_PATH, "w", encoding="utf-8") as f:
+                    json.dump(manifest, f, indent=2, ensure_ascii=False)
+
+        # Processa hub_update primeiro
+        hub_update = result.get("hub_update")
+        if hub_update:
+            ver = hub_update["version"]
+            url = hub_update["download_url"]
+            self._hub_download_url = url
+            
+            toast = ToastNotification(
+                self, 
+                f"Nova versão do Hub disponível (v{ver})",
+                type="special",
+                action_text="Atualizar Hub",
+                duration_ms=0 # Não some sozinho
+            )
+            toast.action_clicked.connect(self._run_hub_update)
+            toast.show_toast()
+            return
+            
         if not updates and not new_modules:
             self._set_status("✅  Todos os módulos estão atualizados.")
+            ToastNotification(self, "Todos os módulos estão atualizados.", type="success").show_toast()
             return
 
         # Marca cards existentes com atualização
@@ -220,23 +290,26 @@ class MainWindow(QMainWindow):
             parts.append(f"{len(updates)} atualização(ões)")
         if new_modules:
             parts.append(f"{len(new_modules)} programa(s) novo(s)")
-        self._set_status(f"  {' | '.join(parts)} disponível(is).")
+        
+        msg = f"{' e '.join(parts)} disponível(is)."
+        self._set_status(f"  {msg}")
 
-        # Se há atualizações de versão, pergunta se deseja instalar agora
+        # Se há atualizações de versão, mostra toast ao invés de popup
         if updates:
-            names = ", ".join(u["display_name"] for u in updates)
-            reply = QMessageBox.question(
-                self, "Atualizações disponíveis",
-                f"{len(updates)} atualização(ões) encontrada(s):\n{names}\n\nDeseja instalar agora?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            toast = ToastNotification(
+                self,
+                msg,
+                type="warning",
+                action_text="Instalar agora",
+                duration_ms=10000
             )
-            if reply == QMessageBox.StandardButton.Yes:
-                self._run_update(updates)
-
+            toast.action_clicked.connect(lambda: self._run_update(updates))
+            toast.show_toast()
     @pyqtSlot(str)
     def _on_update_check_error(self, msg: str):
         self.update_btn.setEnabled(True)
         self._set_status("Sem conexão com o servidor de atualizações.")
+        ToastNotification(self, "Sem conexão com o servidor.", type="info", duration_ms=4000).show_toast()
 
     def _run_update(self, items: list[dict]):
         dialog = UpdateDialog(self)
@@ -246,6 +319,21 @@ class MainWindow(QMainWindow):
         self._update_worker.finished.connect(dialog.on_finished)
         self._update_worker.finished.connect(self._on_update_finished)
         self._update_worker.start()
+        dialog.exec()
+
+    def _run_hub_update(self):
+        if not hasattr(self, "_hub_download_url"):
+            return
+            
+        dialog = UpdateDialog(self)
+        dialog.setWindowTitle("Atualizando o Hub")
+        
+        self._hub_worker = HubSelfUpdateWorker(self._hub_download_url)
+        self._hub_worker.log.connect(dialog.append_log)
+        self._hub_worker.progress.connect(dialog.set_progress)
+        self._hub_worker.finished.connect(dialog.on_finished)
+        
+        self._hub_worker.start()
         dialog.exec()
 
     @pyqtSlot(bool)
@@ -267,6 +355,7 @@ class MainWindow(QMainWindow):
             self._pending_updates = []
             self._pending_new = []
             self._set_status("✅  Módulos atualizados com sucesso.")
+            ToastNotification(self, "Módulos atualizados com sucesso!", type="success").show_toast()
 
     # ──────────────────────────────────────────────────────────
     # Abertura e instalação de ferramentas
@@ -282,7 +371,7 @@ class MainWindow(QMainWindow):
         if ok:
             self._set_status(f"✅  {cfg.get('display_name', module_name)} iniciado.")
         else:
-            QMessageBox.warning(self, "Módulo não encontrado", msg)
+            ToastNotification(self, f"Módulo não encontrado:\n{msg}", type="error", duration_ms=5000).show_toast()
             self._set_status(f"  Falha ao abrir {cfg.get('display_name', module_name)}.")
 
     @pyqtSlot(str)
@@ -292,11 +381,12 @@ class MainWindow(QMainWindow):
             (m for m in self._pending_new if m["name"] == module_name), None
         )
         if not pending:
-            QMessageBox.warning(
-                self, "Erro",
-                "Não foi possível encontrar os dados de instalação.\n"
-                "Clique em 'Verificar Atualizações' e tente novamente."
-            )
+            ToastNotification(
+                self, 
+                "Não foi possível encontrar os dados de instalação.\nClique em 'Verificar Atualizações' e tente novamente.", 
+                type="error", 
+                duration_ms=6000
+            ).show_toast()
             return
 
         item = {

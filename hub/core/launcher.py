@@ -5,6 +5,7 @@ Tipos de módulo suportados:
   - exe   : Executável standalone (Flask embutido + abre browser sozinho)
   - html  : Arquivo HTML estático — abre no browser padrão
   - flask : Flask via `python app.py` (modo dev, requer Python instalado)
+  - web   : Acesso a um endereço web ( Workers, Vercel, Ngrok, etc.)  
 
 Para distribuição em rede sem Python, use sempre módulos do tipo `exe`.
 """
@@ -36,6 +37,8 @@ def open_tool(module_name: str, tool_cfg: dict) -> tuple[bool, str]:
         return _open_exe(module_name, tool_cfg)
     elif kind == "html":
         return _open_html(module_name, tool_cfg)
+    elif kind == "web":
+        return _open_web(module_name, tool_cfg)
     else:  # flask (modo dev com Python)
         return _open_flask_dev(module_name, tool_cfg)
 
@@ -157,3 +160,18 @@ def stop_all() -> None:
     """Encerra todos os processos ativos ao fechar o hub."""
     for name in list(_running_processes.keys()):
         stop_tool(name)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tipo WEB — Abre URL externa diretamente no navegador
+# ──────────────────────────────────────────────────────────────────────────────
+def _open_web(module_name: str, cfg: dict) -> tuple[bool, str]:
+    """Abre uma URL web externa no navegador padrão."""
+    url = cfg.get("entry")
+    if not url:
+        return False, "URL de destino não configurada no manifest.json."
+    
+    try:
+        webbrowser.open(url)
+        return True, f"{cfg['display_name']} aberto no navegador."
+    except Exception as e:
+        return False, f"Erro ao abrir {cfg['display_name']}:\n{e}"

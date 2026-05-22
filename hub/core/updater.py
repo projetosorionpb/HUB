@@ -58,29 +58,50 @@ def check_updates_sync() -> dict:
 
     local_modules: dict = local.get("modules", {})
     remote_modules: dict = remote.get("modules", {})
+    
+    # Verifica atualização do próprio Hub
+    try:
+        from hub.config import HUB_VERSION
+        remote_hub_ver = remote.get("hub_version", "1.0.0")
+        if Version(remote_hub_ver) > Version(HUB_VERSION):
+            hub_download_url = remote.get("hub_download_url")
+            if hub_download_url:
+                result["hub_update"] = {
+                    "version": remote_hub_ver,
+                    "download_url": hub_download_url
+                }
+    except Exception:
+        pass
 
     for name, remote_data in remote_modules.items():
         remote_ver = remote_data.get("version", "0.0.0")
         download_url = remote_data.get("download_url", "")
+        module_type = remote_data.get("type", "exe")
 
-        if not download_url:
-            # Módulo sem URL de download ainda — ignora para instalação automática
+        is_web = (module_type == "web")
+
+        if not download_url and not is_web:
+            # Módulo sem URL de download e não é web — ignora
             continue
 
         if name not in local_modules:
-            # Módulo novo: não existe localmente
+            # Módulo novo
             result["new"].append({
                 "name": name,
                 "display_name": remote_data.get("display_name", name),
                 "version": remote_ver,
                 "download_url": download_url,
                 "cfg": remote_data,
+                "auto_register": is_web
             })
         else:
             # Módulo existente: verifica se tem versão mais nova
             local_ver = local_modules[name].get("version", "0.0.0")
+            local_entry = local_modules[name].get("entry", "")
+            remote_entry = remote_data.get("entry", "")
+            
             try:
-                if Version(remote_ver) > Version(local_ver):
+                if Version(remote_ver) > Version(local_ver) or (is_web and local_entry != remote_entry):
                     result["updates"].append({
                         "name": name,
                         "display_name": remote_data.get("display_name", name),
@@ -88,6 +109,8 @@ def check_updates_sync() -> dict:
                         "remote": remote_ver,
                         "download_url": download_url,
                         "is_new": False,
+                        "cfg": remote_data, # Necessário para o bug fix 5.1 e para web update
+                        "auto_register": is_web
                     })
             except Exception:
                 pass

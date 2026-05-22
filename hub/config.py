@@ -29,5 +29,9 @@ else:
 MODULES_DIR = os.path.join(_HUB_ROOT, "modules")
 MANIFEST_PATH = os.path.join(_HUB_ROOT, "manifest.json")
 
+# Auto-bootstrapping: Garante que a pasta modules exista
+if not os.path.exists(MODULES_DIR):
+    os.makedirs(MODULES_DIR, exist_ok=True)
+
 # Versão atual do hub
 HUB_VERSION = "1.0.0"
