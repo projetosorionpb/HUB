@@ -26,16 +26,16 @@
       "icon_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><rect x=\"10\" y=\"4\" width=\"36\" height=\"44\" rx=\"4\" fill=\"#ff8c00\" opacity=\"0.85\"/><path d=\"M34 4 L46 16 L34 16 Z\" fill=\"#0f1724\"/><path d=\"M34 4 L34 16 L46 16\" fill=\"none\" stroke=\"#ff8c00\" stroke-width=\"1.5\"/><rect x=\"16\" y=\"22\" width=\"24\" height=\"3\" rx=\"1.5\" fill=\"#0f1724\" opacity=\"0.7\"/><rect x=\"16\" y=\"29\" width=\"20\" height=\"3\" rx=\"1.5\" fill=\"#0f1724\" opacity=\"0.7\"/><rect x=\"16\" y=\"36\" width=\"16\" height=\"3\" rx=\"1.5\" fill=\"#0f1724\" opacity=\"0.7\"/><circle cx=\"46\" cy=\"48\" r=\"12\" fill=\"#0f1724\"/><circle cx=\"46\" cy=\"48\" r=\"12\" fill=\"#ff8c00\" opacity=\"0.2\" stroke=\"#ff8c00\" stroke-width=\"1.5\"/><text x=\"46\" y=\"53\" text-anchor=\"middle\" font-size=\"10\" font-weight=\"bold\" fill=\"#ff8c00\" font-family=\"Arial\">PDF</text></svg>",
       "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.0-ferramentas/Conversor_PDF_para_DWG.zip"
     },
-    "analise_qualidade": {
+    "automacao_cad": {
       "version": "1.0.0",
-      "display_name": "Análise de Qualidade",
-      "description": "Dashboard de análise e controle de qualidade dos projetos.",
-      "type": "html",
-      "exe_name": null,
-      "port": null,
-      "entry": "index.html",
-      "color": "#00e676",
-      "icon_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><rect x=\"6\" y=\"36\" width=\"12\" height=\"22\" rx=\"3\" fill=\"#00e676\" opacity=\"0.7\"/><rect x=\"22\" y=\"24\" width=\"12\" height=\"34\" rx=\"3\" fill=\"#00e676\" opacity=\"0.85\"/><rect x=\"38\" y=\"12\" width=\"12\" height=\"46\" rx=\"3\" fill=\"#00e676\"/><polyline points=\"10,34 26,22 42,10 56,6\" stroke=\"#00e676\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\" opacity=\"0.5\"/><path d=\"M44 18 L52 10 M52 10 L44 10 M52 10 L52 18\" stroke=\"#ffffff\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>",
+      "display_name": "Automação CAD",
+      "description": "Ferramenta para automatização de processos em arquivos CAD.",
+      "type": "exe",
+      "exe_name": "Automacao_CAD.exe",
+      "port": 5002,
+      "entry": "Automacao_CAD.exe",
+      "color": "#ef4444",
+      "icon_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><circle cx=\"32\" cy=\"32\" r=\"10\" fill=\"none\" stroke=\"#ef4444\" stroke-width=\"3\"/><path d=\"M32 6 L32 14 M32 50 L32 58 M6 32 L14 32 M50 32 L58 32\" stroke=\"#ef4444\" stroke-width=\"3\" stroke-linecap=\"round\"/><path d=\"M14.6 14.6 L20.2 20.2 M43.8 43.8 L49.4 49.4 M49.4 14.6 L43.8 20.2 M20.2 43.8 L14.6 49.4\" stroke=\"#ef4444\" stroke-width=\"3\" stroke-linecap=\"round\"/><circle cx=\"32\" cy=\"32\" r=\"4\" fill=\"#ef4444\"/></svg>",
       "download_url": ""
     },
     "gerenciador_obras": {
