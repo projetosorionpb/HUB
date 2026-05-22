@@ -5,7 +5,7 @@
     "substituidor_blocos": {
       "version": "1.0.1",
       "display_name": "Substituidor de Blocos",
-      "description": "Substitui blocos em arquivos de projeto de forma automatizada.",
+      "description": "Substitui blocos padrão do DXF, pelos blocos do Projeto",
       "type": "exe",
       "exe_name": "Substituidor_Blocos_DXF.exe",
       "port": 5000,
@@ -17,7 +17,7 @@
     "conversor_pdf": {
       "version": "1.0.1",
       "display_name": "Conversor PDF",
-      "description": "Converte e processa documentos para o formato PDF.",
+      "description": "Converte PDF para DWG.",
       "type": "exe",
       "exe_name": "Conversor_PDF_para_DWG.exe",
       "port": 5077,
