@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversor de Postes — EPD-PB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg:        #07090e;
+  --surface:   #0e1117;
+  --surface2:  #141820;
+  --surface3:  #0b0e14;
+  --border:    #1e2533;
+  --border2:   #2a3347;
+  --accent:    #f5c518;
+  --accent-dk: #c9a010;
+  --text-hi:   #eef0f4;
+  --text-md:   #9ca3af;
+  --text-lo:   #4a5568;
+  --green:     #22c55e;
+  --red:       #ef4444;
+  --blue:      #60a5fa;
+  --radius:    10px;
+  --radius-sm: 6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);
+  display:flex;align-items:flex-start;justify-content:center;
+  min-height:100vh;padding:2rem 1rem;
+  font-family:'DM Sans',sans-serif;
+  color:var(--text-md);
+}
+.app{
+  background:var(--surface);
+  border-radius:14px;width:100%;max-width:880px;
+  overflow:hidden;border:1px solid var(--border);
+  box-shadow:0 24px 64px rgba(0,0,0,.5);
+}
+
+/* ── TOPBAR ── */
+.topbar{
+  background:var(--surface3);
+  border-bottom:1px solid var(--border);
+  padding:12px 22px;
+  display:flex;align-items:center;gap:12px;
+}
+.tb-title{font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.06em;text-transform:uppercase}
+.tb-badge{
+  font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;
+  background:var(--accent);color:var(--surface3);letter-spacing:.05em;
+}
+.tb-sub{font-size:12px;color:var(--text-lo)}
+.tb-status{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-lo)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;transition:background .3s}
+
+/* ── BODY ── */
+.body{padding:22px}
+
+/* ── UPLOAD STRIP ── */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+@media(max-width:560px){.upload-grid{grid-template-columns:1fr}}
+
+.upload-box{
+  position:relative;
+  background:var(--surface2);
+  border:1px dashed var(--border2);
+  border-radius:var(--radius);
+  padding:14px 16px;
+  display:flex;align-items:center;gap:12px;
+  cursor:pointer;transition:border-color .15s,background .15s;
+  min-height:60px;
+}
+.upload-box:hover{border-color:var(--accent);background:#141f2b}
+.upload-box.has-file{border-style:solid;border-color:var(--border2)}
+.upload-box.has-file.dxf-loaded{border-color:#2a4a2a}
+.upload-box input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.ub-icon{
+  width:36px;height:36px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;flex-shrink:0;
+}
+.ub-icon.xlsx{background:#052e16;color:var(--green)}
+.ub-icon.dxf{background:#0c1a30;color:var(--blue)}
+.ub-text{}
+.ub-label{font-size:11px;font-weight:600;color:var(--text-lo);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.ub-name{font-size:13px;font-weight:500;color:var(--text-hi);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.ub-hint{font-size:12px;color:var(--text-lo)}
+.ub-badge{
+  margin-left:auto;flex-shrink:0;
+  font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;
+  background:#0c2a0c;color:var(--green);letter-spacing:.04em;
+}
+.ub-badge.warn{background:#1a1a0c;color:var(--accent)}
+
+/* ── MAIN CARD ── */
+.main-card{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);overflow:hidden;
+}
+.mc-head{
+  padding:14px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.mc-icon{
+  width:32px;height:32px;border-radius:8px;
+  background:var(--surface3);border:1px solid var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--accent);font-size:15px;flex-shrink:0;
+}
+.mc-title{font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.04em;text-transform:uppercase}
+.mc-sub{font-size:11px;color:var(--text-lo);margin-top:1px}
+.mc-actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.mc-btn{
+  background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:5px 11px;font-size:11px;font-weight:500;color:var(--text-md);cursor:pointer;
+  display:flex;align-items:center;gap:5px;font-family:'DM Sans',sans-serif;
+  transition:border-color .15s,color .15s;white-space:nowrap;
+}
+.mc-btn:hover{border-color:var(--accent);color:var(--accent)}
+.mc-body{padding:18px}
+
+/* ── MODE TOGGLE ── */
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+@media(max-width:560px){.field-grid{grid-template-columns:1fr}}
+.field-label{font-size:11px;font-weight:600;color:var(--text-lo);letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px}
+.field-display{
+  background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:9px 12px;font-size:13px;color:var(--text-lo);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.type-toggle{display:grid;grid-template-columns:1fr 1fr;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border)}
+.tt-opt{
+  padding:9px 10px;text-align:center;cursor:pointer;
+  font-size:12px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;
+  transition:background .15s,color .15s;background:var(--surface3);
+  color:var(--text-lo);border:none;font-family:'DM Sans',sans-serif;
+}
+.tt-opt.active{background:var(--accent);color:var(--surface3)}
+.tt-sub{font-size:9px;font-weight:400;display:block;margin-top:2px;opacity:.7;text-transform:none;letter-spacing:0}
+
+/* ── OPTIONS ── */
+.opt-strip{margin-bottom:16px}
+.opt-row-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.opt-row-item:last-child{border-bottom:none}
+.opt-text{flex:1}
+.opt-text strong{display:block;color:var(--text-hi);font-size:13px;font-weight:600;margin-bottom:2px}
+.opt-text span{font-size:12px;color:var(--text-lo)}
+
+/* ── DXF INFO ROW ── */
+.dxf-info{
+  display:none;
+  background:var(--surface3);border:1px solid #1e3320;border-radius:var(--radius-sm);
+  padding:10px 14px;margin-bottom:16px;
+  align-items:center;gap:10px;
+}
+.dxf-info.visible{display:flex}
+.dxf-info i{color:var(--blue);font-size:16px;flex-shrink:0}
+.dxf-info-text{flex:1;font-size:12px;color:var(--text-md)}
+.dxf-info-text strong{color:var(--text-hi);font-weight:600}
+.dxf-match-count{font-size:11px;font-weight:600;color:var(--green);padding:2px 8px;background:#0c2a0c;border-radius:4px;flex-shrink:0}
+
+/* ── TOGGLE ── */
+.tog{position:relative;width:36px;height:20px;flex-shrink:0}
+.tog input{display:none}
+.tog-t{position:absolute;inset:0;border-radius:10px;background:var(--border);border:1px solid var(--border2);cursor:pointer;transition:background .15s,border-color .15s}
+.tog input:checked+.tog-t{background:var(--accent);border-color:var(--accent)}
+.tog-k{position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:var(--text-lo);transition:transform .15s,background .15s;pointer-events:none}
+.tog input:checked~.tog-k{transform:translateX(16px);background:var(--surface3)}
+
+/* ── BUTTONS ── */
+.btn-row{display:flex;gap:8px;margin-top:4px}
+.btn-calc{
+  flex:1;padding:11px;border-radius:var(--radius-sm);border:none;
+  background:var(--accent);color:var(--surface3);
+  font-size:13px;font-weight:700;cursor:pointer;
+  letter-spacing:.04em;text-transform:uppercase;font-family:'DM Sans',sans-serif;
+  transition:background .1s,transform .1s;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+}
+.btn-calc:hover:not(:disabled){background:var(--accent-dk)}
+.btn-calc:active:not(:disabled){transform:scale(.98)}
+.btn-calc:disabled{background:var(--border);color:var(--text-lo);cursor:not-allowed}
+.btn-clear{
+  padding:11px 16px;border-radius:var(--radius-sm);
+  border:1px solid var(--border);background:transparent;
+  color:var(--text-lo);font-size:12px;font-weight:500;cursor:pointer;
+  font-family:'DM Sans',sans-serif;
+  transition:border-color .15s,color .15s;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;
+}
+.btn-clear:hover{border-color:var(--text-md);color:var(--text-md)}
+
+/* ── LOG ── */
+.log-area{
+  margin-top:14px;background:var(--surface3);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:10px 14px;
+  font-size:12px;line-height:2;max-height:180px;overflow-y:auto;display:none;
+  font-family:'DM Mono',monospace;
+}
+.ll{color:var(--text-lo)}.lok{color:var(--green)}.lerr{color:var(--red)}.lh{color:var(--accent);font-weight:600}
+.lwarn{color:#e6b800}
+
+/* ── DOWNLOAD CARDS ── */
+.dl-area{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.dl-btn{
+  display:flex;align-items:center;gap:12px;padding:10px 14px;
+  background:var(--surface3);border:1px solid var(--border);
+  border-radius:var(--radius-sm);cursor:pointer;transition:border-color .15s;width:100%;
+}
+.dl-btn:hover{border-color:var(--accent)}
+.dl-ic{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.ic-xlsx{background:#052e16;color:var(--green)}
+.ic-pos{background:#0c1a30;color:var(--blue)}
+.ic-cab{background:#2d1b00;color:var(--accent)}
+.ic-unif{background:#1a0a2e;color:#c084fc}
+.dl-name{font-size:12px;font-weight:700;color:var(--text-hi);text-transform:uppercase;letter-spacing:.04em}
+.dl-desc{font-size:11px;color:var(--text-lo);margin-top:1px}
+.dl-arr{margin-left:auto;color:var(--text-lo);font-size:15px}
+
+/* ── FOOTER ── */
+.footer{
+  padding:12px 22px;text-align:center;font-size:11px;
+  color:var(--text-lo);border-top:1px solid var(--border);letter-spacing:.04em;
+}
+.footer span{color:var(--accent);font-weight:600}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="tb-title">Conversor de postes</div>
+    <div class="tb-badge">EPD-PB</div>
+    <div class="tb-sub">Geração de arquivos CAD</div>
+    <div class="tb-status">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusTxt">Aguardando arquivo</span>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- UPLOADS -->
+    <div class="upload-grid">
+      <!-- XLSX -->
+      <div class="upload-box" id="boxXlsx">
+        <input type="file" id="fi" accept=".xlsx,.xls">
+        <div class="ub-icon xlsx"><i class="ti ti-file-spreadsheet"></i></div>
+        <div class="ub-text">
+          <div class="ub-label">Planilha</div>
+          <div class="ub-hint" id="xlsxHint">Arraste o .xlsx ou clique</div>
+        </div>
+      </div>
+
+      <!-- DXF -->
+      <div class="upload-box" id="boxDxf">
+        <input type="file" id="fiDxf" accept=".dxf">
+        <div class="ub-icon dxf"><i class="ti ti-vector-triangle"></i></div>
+        <div class="ub-text">
+          <div class="ub-label">DXF eProject <span style="color:var(--text-lo);font-weight:400;text-transform:none">(opcional)</span></div>
+          <div class="ub-hint" id="dxfHint">Arraste o .dxf ou clique</div>
+        </div>
+        <div class="ub-badge warn" id="dxfBadge" style="display:none">Ângulo</div>
+      </div>
+    </div>
+
+    <!-- INFO DXF MATCH -->
+    <div class="dxf-info" id="dxfInfo">
+      <i class="ti ti-compass"></i>
+      <div class="dxf-info-text">
+        <strong id="dxfInfoTitle">DXF carregado</strong> —
+        <span id="dxfInfoSub">os ângulos reais dos postes serão usados no CSV</span>
+      </div>
+      <div class="dxf-match-count" id="dxfMatchCount">0 postes</div>
+    </div>
+
+    <!-- CARD PRINCIPAL -->
+    <div class="main-card">
+      <div class="mc-head">
+        <div class="mc-icon"><i class="ti ti-file-spreadsheet"></i></div>
+        <div>
+          <div class="mc-title">Conversor de arquivos</div>
+          <div class="mc-sub">Gera projeto.csv unificado — PROJETO_LOTE.lsp</div>
+        </div>
+        <div class="mc-actions">
+          <button class="mc-btn" id="btnDlUnif"   style="display:none" onclick="triggerDl('unif')"><i class="ti ti-files"   style="font-size:13px"></i>projeto.csv</button>
+          <button class="mc-btn" id="btnDlXlsx"   style="display:none" onclick="triggerDl('xlsx')"><i class="ti ti-table"   style="font-size:13px"></i>xlsx corrigido</button>
+        </div>
+      </div>
+
+      <div class="mc-body">
+        <div class="field-grid">
+          <div>
+            <div class="field-label">Arquivo carregado</div>
+            <div class="field-display" id="fileNameDisplay">Nenhum arquivo selecionado</div>
+          </div>
+          <div>
+            <div class="field-label">Tipo de conversão</div>
+            <div class="type-toggle">
+              <button class="tt-opt active" id="ttCompleto" onclick="setMode('completo')">Completo<span class="tt-sub">xlsx + csvs</span></button>
+              <button class="tt-opt"        id="ttSoXlsx"   onclick="setMode('soxlsx')">Só xlsx<span class="tt-sub">corrigir ops</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="opt-strip">
+          <div class="opt-row-item">
+            <div class="opt-text">
+              <strong>Manter → Instalar</strong>
+              <span>Converter operações em todas as abas</span>
+            </div>
+            <label class="tog"><input type="checkbox" id="tManter" checked><div class="tog-t"></div><div class="tog-k"></div></label>
+          </div>
+
+        </div>
+
+        <div class="btn-row">
+          <button class="btn-calc" id="btnRun" disabled><i class="ti ti-bolt" style="font-size:15px"></i>Processar arquivo</button>
+          <button class="btn-clear" onclick="resetAll()">Limpar</button>
+        </div>
+
+        <div class="log-area" id="logEl"></div>
+        <div class="dl-area"  id="dlArea"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Feito por <span>Valdeci Nunes</span></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONSTANTES E MAPAS (idênticos ao original)
+// ─────────────────────────────────────────────
+const TIPO_ABREV = {"Duplo T":"DT","Simples T":"ST","H":"H"};
+const TIPO_MAP   = {instalar:"I",remover:"R",substituir:"S",manter:"I"};
+const MT_MAP = {"CAA2":"CAA 2","CAA 2":"CAA 2","CAA4":"CAA 4","CAA 4":"CAA 4","CAA1/0":"CAA 1/0","CAA 1/0":"CAA 1/0","CAA4/0":"CAA 4/0","CAA 4/0":"CAA 4/0","CAA336,4":"CAA 336,4","CAA 336,4":"CAA 336,4","P50":"P 50/CAZ 9,5","P 50":"P 50/CAZ 9,5","P120":"P 120/CAZ 9,5","P 120":"P 120/CAZ 9,5","P185":"P 185/CAZ 9,5","P 185":"P 185/CAZ 9,5"};
+const BT_MAP  = {"M35":"M3x1x35+35","M 35":"M3x1x35+35","M70":"M3x1x70+70","M 70":"M3x1x70+70","M120":"M3x1x120+70","M 120":"M3x1x120+70","M2x1x35+35":"M2x1x35+35","M3x1x35+35":"M3x1x35+35","M3x1x70+70":"M3x1x70+70","M3x1x120+70":"M3x1x120+70","CA4":"CA 4","CA 4":"CA 4","CA1/0":"CA 1/0/CA 4","CA 1/0":"CA 1/0/CA 4"};
+const ABAS_OP = {"Postes":"Operação","Estrutura MT":"Operação MT","Estrutura BT":"Operação BT","Rede MT":"Tipo de Operação","Rede BT":"Tipo de Operação","Equipamentos":"Tipo de Operação"};
+
+// Blocos de poste no DXF → TIPO
+const DXF_TIPO_MAP = {
+  "PosteDtProjetado": "I",
+  "PosteDtSubstituir": "S",
+  "PosteDtExistente": "R",
+};
+
+let wb = null, fname = "", mode = "completo";
+let dxfPostes = []; // [{x, y, rot_graus}] extraídos do DXF
+const dlData = {postes:null, cabos:null, unif:null, xlsx:null};
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+const norm   = v => v == null ? "" : String(v).trim();
+const normF  = v => { if(!v) return "ABC"; return String(v).trim().toUpperCase().replace(/[\s\-]/g,"").replace(/N/g,"")||"ABC" };
+const normC  = (v,m) => { if(!v) return ""; const s=String(v).trim(); if(m[s]) return m[s]; const s2=s.replace(/\s/g,"").toUpperCase(); for(const[k,vv] of Object.entries(m)) if(k.replace(/\s/g,"").toUpperCase()===s2) return vv; return s };
+const numS   = v => { const n=parseFloat(v); return isNaN(n)?"":String(Math.round(n)) };
+const potB   = v => { const n=parseFloat(v); if(isNaN(n)) return ""; return n===Math.floor(n)?String(Math.floor(n)):String(n).replace(".",",") };
+const abTipo = v => { const s=norm(v); return TIPO_ABREV[s]||(s.length>=2?s.slice(0,2).toUpperCase():s) };
+const distT  = r => { for(const k of["Distância Trena","Distancia Trena","Distância GPS","Distancia GPS","Distância","Distancia"]){const v=parseFloat(r[k]);if(!isNaN(v)&&v>0)return String(Math.round(v))} return "" };
+const csvLine= (cols,o) => cols.map(c=>String(o[c]??"")).join(";");
+
+function sheet2obj(ws){
+  const rng=XLSX.utils.decode_range(ws["!ref"]||"A1:A1"), hdr=[];
+  for(let c=rng.s.c;c<=rng.e.c;c++){const cl=ws[XLSX.utils.encode_cell({r:rng.s.r,c})];hdr.push(cl?String(cl.v):"")}
+  const rows=[];
+  for(let r=rng.s.r+1;r<=rng.e.r;r++){const o={};for(let c=rng.s.c;c<=rng.e.c;c++){const cl=ws[XLSX.utils.encode_cell({r,c})];o[hdr[c-rng.s.c]]=cl?cl.v:null}rows.push(o)}
+  return rows;
+}
+function getAba(w,n){if(!w.SheetNames.includes(n))return[];return sheet2obj(w.Sheets[n])}
+function estStr(rows,cOp,cEst,op){
+  const cnt={};
+  for(const r of rows){if(norm(r[cOp]).toLowerCase()!==op.toLowerCase())continue;const e=norm(r[cEst]).replace(/-/g,"");if(!e)continue;cnt[e]=(cnt[e]||0)+1}
+  return Object.entries(cnt).map(([k,v])=>`${v}-${k}`).join(" ")
+}
+
+function addLog(msg,cls="ll"){
+  const el=document.getElementById("logEl"); el.style.display="block";
+  const d=document.createElement("div"); d.className=cls; d.textContent=msg; el.appendChild(d); el.scrollTop=el.scrollHeight;
+}
+function dlText(fn,txt){const b=new Blob([txt],{type:"text/csv;charset=utf-8;"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=fn;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+function dlXlsx(w,fn){const buf=XLSX.write(w,{bookType:"xlsx",type:"array"}),b=new Blob([buf],{type:"application/octet-stream"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=fn;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+function triggerDl(tipo){
+  if(tipo==="postes"&&dlData.postes)dlText("postes.csv",dlData.postes);
+  if(tipo==="cabos" &&dlData.cabos) dlText("cabos.csv", dlData.cabos);
+  if(tipo==="unif"  &&dlData.unif)  dlText("projeto.csv",dlData.unif);
+  if(tipo==="xlsx"  &&dlData.xlsx)  dlXlsx(dlData.xlsx,fname.replace(/\.xlsx?$/i,"")+"_corrigido.xlsx");
+}
+function addDlCard(icClass,icon,name,desc,tipo){
+  const b=document.createElement("button");b.className="dl-btn";
+  b.innerHTML=`<div class="dl-ic ${icClass}"><i class="ti ${icon}"></i></div><div style="flex:1;text-align:left"><div class="dl-name">${name}</div><div class="dl-desc">${desc}</div></div><i class="ti ti-download dl-arr"></i>`;
+  b.onclick=()=>triggerDl(tipo);
+  document.getElementById("dlArea").appendChild(b);
+}
+
+// ─────────────────────────────────────────────
+// MODO
+// ─────────────────────────────────────────────
+function setMode(m){
+  mode=m;
+  document.getElementById("ttCompleto").classList.toggle("active",m==="completo");
+  document.getElementById("ttSoXlsx").classList.toggle("active",m==="soxlsx");
+
+}
+setMode("completo");
+
+// ─────────────────────────────────────────────
+// LOAD XLSX
+// ─────────────────────────────────────────────
+function loadFile(file){
+  fname=file.name;
+  const xlsxHint=document.getElementById("xlsxHint");
+  xlsxHint.textContent=fname;
+  xlsxHint.style.color="var(--text-hi)";
+  xlsxHint.style.fontWeight="500";
+  document.getElementById("fileNameDisplay").textContent=fname;
+  document.getElementById("fileNameDisplay").style.color="var(--text-hi)";
+  document.getElementById("statusDot").style.background="var(--accent)";
+  document.getElementById("statusTxt").textContent="Arquivo carregado";
+  const r=new FileReader();
+  r.onload=e=>{wb=XLSX.read(e.target.result,{type:"array"});document.getElementById("btnRun").disabled=false};
+  r.readAsArrayBuffer(file);
+}
+document.getElementById("fi").addEventListener("change",e=>{if(e.target.files[0])loadFile(e.target.files[0])});
+
+// ─────────────────────────────────────────────
+// PARSER DXF — extrai INSERTs de poste com ângulo
+// Parser manual leve, sem dependência externa
+// ─────────────────────────────────────────────
+function parseDxf(text){
+  const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n");
+  const postes = [];
+  let i = 0;
+  while(i < lines.length){
+    const code = lines[i] ? lines[i].trim() : "";
+    const val  = lines[i+1] ? lines[i+1].trim() : "";
+    if(code === "0" && val === "INSERT"){
+      // lê o bloco INSERT completo
+      let name="", x=null, y=null, rot=0;
+      i += 2;
+      while(i < lines.length){
+        const c2 = lines[i] ? lines[i].trim() : "";
+        const v2 = lines[i+1] ? lines[i+1].trim() : "";
+        if(c2 === "0"){ break; } // próxima entidade
+        if(c2 === "2")  name = v2;
+        if(c2 === "10") x    = parseFloat(v2);
+        if(c2 === "20") y    = parseFloat(v2);
+        if(c2 === "50") rot  = parseFloat(v2);
+        i += 2;
+      }
+      if(name && DXF_TIPO_MAP[name] && x !== null && y !== null){
+        postes.push({nome:name, tipo:DXF_TIPO_MAP[name], x, y, rot});
+      }
+    } else {
+      i += 2;
+    }
+  }
+  return postes;
+}
+
+// Distância euclidiana entre dois pontos UTM
+function dist(x1,y1,x2,y2){ return Math.sqrt((x1-x2)**2+(y1-y2)**2); }
+
+// Para um poste com coordenadas (px, py), busca o mais próximo no DXF (limiar 10m)
+function anguloDxf(px, py, limiar=10){
+  if(!dxfPostes.length) return "";
+  let best=null, bestD=Infinity;
+  for(const dp of dxfPostes){
+    const d=dist(px,py,dp.x,dp.y);
+    if(d<bestD){bestD=d;best=dp;}
+  }
+  if(bestD<=limiar) return best.rot.toFixed(4).replace(".",",");
+  return "";
+}
+
+// ─────────────────────────────────────────────
+// LOAD DXF
+// ─────────────────────────────────────────────
+function loadDxf(file){
+  const r=new FileReader();
+  r.onload=e=>{
+    dxfPostes = parseDxf(e.target.result);
+    const n = dxfPostes.length;
+    const hint = document.getElementById("dxfHint");
+    hint.textContent = file.name;
+    hint.style.color = "var(--text-hi)";
+    hint.style.fontWeight = "500";
+    document.getElementById("dxfBadge").style.display = "block";
+    document.getElementById("boxDxf").classList.add("dxf-loaded");
+
+    // info bar
+    const info = document.getElementById("dxfInfo");
+    info.classList.add("visible");
+    document.getElementById("dxfInfoTitle").textContent = file.name;
+    document.getElementById("dxfInfoSub").textContent = n > 0
+      ? `${n} poste(s) com ângulo encontrados — serão inseridos na coluna ANGULO_GRAUS`
+      : "Nenhum poste reconhecido — verifique os nomes dos blocos no DXF";
+    document.getElementById("dxfMatchCount").textContent = `${n} poste${n!==1?"s":""}`;
+    document.getElementById("dxfMatchCount").style.background = n > 0 ? "#0c2a0c" : "#2a0c0c";
+    document.getElementById("dxfMatchCount").style.color = n > 0 ? "var(--green)" : "var(--red)";
+  };
+  r.readAsText(file, "utf-8");
+}
+document.getElementById("fiDxf").addEventListener("change",e=>{if(e.target.files[0])loadDxf(e.target.files[0])});
+
+// ─────────────────────────────────────────────
+// RESET
+// ─────────────────────────────────────────────
+function resetAll(){
+  wb=null; fname=""; dxfPostes=[];
+  document.getElementById("xlsxHint").textContent="Arraste o .xlsx ou clique";
+  document.getElementById("xlsxHint").style.color="";
+  document.getElementById("xlsxHint").style.fontWeight="";
+  document.getElementById("dxfHint").textContent="Arraste o .dxf ou clique";
+  document.getElementById("dxfHint").style.color="";
+  document.getElementById("dxfHint").style.fontWeight="";
+  document.getElementById("dxfBadge").style.display="none";
+  document.getElementById("boxDxf").classList.remove("dxf-loaded");
+  document.getElementById("dxfInfo").classList.remove("visible");
+  document.getElementById("fileNameDisplay").textContent="Nenhum arquivo selecionado";
+  document.getElementById("fileNameDisplay").style.color="";
+  document.getElementById("logEl").style.display="none";
+  document.getElementById("logEl").innerHTML="";
+  document.getElementById("dlArea").innerHTML="";
+  document.getElementById("btnRun").disabled=true;
+  document.getElementById("statusDot").style.background="var(--green)";
+  document.getElementById("statusTxt").textContent="Aguardando arquivo";
+  ["btnDlUnif","btnDlXlsx"].forEach(id=>document.getElementById(id).style.display="none");
+  dlData.postes=null; dlData.cabos=null; dlData.unif=null; dlData.xlsx=null; // postes/cabos internos ainda usados para montar unif
+  document.getElementById("fi").value="";
+  document.getElementById("fiDxf").value="";
+}
+
+// ─────────────────────────────────────────────
+// PROCESSAR
+// ─────────────────────────────────────────────
+document.getElementById("btnRun").addEventListener("click",()=>{
+  if(!wb) return;
+  document.getElementById("logEl").style.display="none";
+  document.getElementById("logEl").innerHTML="";
+  document.getElementById("dlArea").innerHTML="";
+  addLog("▶ Iniciando processamento...", "lh");
+
+  const hasDxf = dxfPostes.length > 0;
+  if(hasDxf) addLog(`  DXF: ${dxfPostes.length} postes com ângulo disponíveis`, "lok");
+  else        addLog("  DXF: não carregado — ANGULO_GRAUS ficará vazio", "lwarn");
+
+  const wbO = XLSX.read(XLSX.write(wb,{bookType:"xlsx",type:"array"}),{type:"array"});
+
+  // ── Manter → Instalar ──
+  if(document.getElementById("tManter").checked){
+    let tot=0;
+    for(const[aba,col] of Object.entries(ABAS_OP)){
+      if(!wbO.SheetNames.includes(aba)) continue;
+      const ws=wbO.Sheets[aba];
+      const rng=XLSX.utils.decode_range(ws["!ref"]||"A1:A1");
+      let ci=-1;
+      for(let c=rng.s.c;c<=rng.e.c;c++){const cl=ws[XLSX.utils.encode_cell({r:rng.s.r,c})];if(cl&&String(cl.v)===col){ci=c;break}}
+      if(ci===-1) continue;
+      let cnt=0;
+      for(let r=rng.s.r+1;r<=rng.e.r;r++){
+        const addr=XLSX.utils.encode_cell({r,c:ci}), cl=ws[addr];
+        if(cl&&String(cl.v).trim().toLowerCase()==="manter"){cl.v="Instalar";cl.w="Instalar";cnt++}
+      }
+      if(cnt) addLog(`  ${aba}: ${cnt} → "Instalar"`, "lok");
+      tot+=cnt;
+    }
+    addLog(`  Total: ${tot} células corrigidas`, "lok");
+  }
+
+  // ── Gerar postes.csv ──
+  if(mode==="completo"){
+    const COLS=["X","Y","TIPO","DESC_I","TERRA","TRAFO","POT_KVA","CHAVE","QTD","ELO","PR","BASE","DESC_R","TRAFO_R","POT_R","CHAVE_R","QTD_R","ELO_R","ANGULO_GRAUS","PONTO"];
+    const postes=getAba(wbO,"Postes"), mtR=getAba(wbO,"Estrutura MT"), btR=getAba(wbO,"Estrutura BT");
+    const equip=getAba(wbO,"Equipamentos"), prot=getAba(wbO,"Proteção"), divers=getAba(wbO,"Diversos");
+    const comT=new Set(prot.filter(r=>norm(r["Tipo"]).toUpperCase()==="ATERRAMENTO-ATE").map(r=>parseInt(r["Poste #"])));
+    const comB=new Set(divers.filter(r=>norm(r["Tipo"]).toUpperCase()==="CONCRETAR BASE").map(r=>parseInt(r["Poste #"])));
+    const eqP={};
+    for(const eq of equip){const n=parseInt(eq["Poste #"]);if(!isNaN(n)){eqP[n]=eqP[n]||[];eqP[n].push(eq)}}
+    const lines=[COLS.join(";")];
+    let ok=0,sk=0,angOk=0;
+    for(const row of postes){
+      const rawN=row["#"]; if(rawN==null) continue;
+      const num=parseInt(rawN);
+      const x=parseFloat(row["UTM X"]),y=parseFloat(row["UTM Y"]);
+      if(isNaN(x)||isNaN(y)){sk++;continue}
+      const opR=norm(row["Operação"]).toLowerCase(), op=TIPO_MAP[opR]||"";
+      if(!op){sk++;continue}
+      const tp=abTipo(row["Tipo de Poste"]),alt=numS(row["Altura"]),esf=numS(row["Esforço"]??row["Esforco"]);
+      const base=tp+(alt||"")+(esf?"/"+esf:"");
+      const mtP=mtR.filter(r=>parseInt(r["Poste #"])===num), btP=btR.filter(r=>parseInt(r["Poste #"])===num);
+      const j=(...p)=>p.filter(Boolean).join(" ");
+      let dI="",dR="";
+      if(op==="I")       dI=j(base,estStr(mtP,"Operação MT","Estrutura MT","Instalar"),estStr(btP,"Operação BT","Estrutura BT","Instalar"));
+      else if(op==="R")  dR=j(base,estStr(mtP,"Operação MT","Estrutura MT","Remover"), estStr(btP,"Operação BT","Estrutura BT","Remover"));
+      else {
+        dI=j(base,estStr(mtP,"Operação MT","Estrutura MT","Instalar"),estStr(btP,"Operação BT","Estrutura BT","Instalar"));
+        dR=j(base,estStr(mtP,"Operação MT","Estrutura MT","Remover"), estStr(btP,"Operação BT","Estrutura BT","Remover"));
+      }
+      let tI=0,pI="",cI=0,tR=0,pR="",cR=0;
+      for(const eq of (eqP[num]||[])){
+        const oE=norm(eq["Tipo de Operação"]).toLowerCase(),tE=norm(eq["Tipo de Instalação"]).toUpperCase();
+        const pt=eq["Potência (KVA)"],hT=tE.includes("TRANSFORMADOR"),hC=tE.includes("CHAVE")&&!hT;
+        if(["instalar","manter"].includes(oE)){if(hT){tI=1;pI=potB(pt)}if(hC)cI=1}
+        else if(oE==="remover"){if(hT){tR=1;pR=potB(pt)}if(hC)cR=1}
+      }
+
+      // ── ÂNGULO DO DXF ──
+      const angStr = anguloDxf(x, y);
+      if(angStr) angOk++;
+
+      lines.push(csvLine(COLS,{
+        X:x.toFixed(3).replace(".",","), Y:y.toFixed(3).replace(".",","),
+        TIPO:op, DESC_I:dI, TERRA:comT.has(num)?1:0,
+        TRAFO:tI, POT_KVA:pI, CHAVE:cI, QTD:"", ELO:"", PR:"Nenhum",
+        BASE:comB.has(num)?1:0, DESC_R:dR, TRAFO_R:tR, POT_R:pR, CHAVE_R:cR, QTD_R:"", ELO_R:"",
+        ANGULO_GRAUS:angStr, PONTO:"F.P"+num
+      }));
+      ok++;
+    }
+    dlData.postes=lines.join("\n");
+    const angMsg = hasDxf ? ` — ${angOk} com ângulo do DXF` : "";
+    addLog(`  Postes: ${ok} gerados${sk?" ("+sk+" ignorados)":""}${angMsg}`, "lok");
+  }
+
+  // ── Gerar cabos.csv ──
+  if(mode==="completo"){
+    const COLS=["REDE","TIPO","ORIGEM_X","ORIGEM_Y","DESTINO_X","DESTINO_Y","CONDUTOR_I","FASES_I","CONDUTOR_R","FASES_R","DIST"];
+    const postes=getAba(wbO,"Postes"); const coord={};
+    for(const r of postes){const n=parseInt(r["#"]),x=parseFloat(r["UTM X"]),y=parseFloat(r["UTM Y"]);if(!isNaN(n)&&!isNaN(x)&&!isNaN(y))coord[n]=[x,y]}
+    const lines=[COLS.join(";")]; let ok=0,sk=0;
+    function procR(rows,rn,mapa){
+      for(const row of rows){
+        const orig=parseInt(row["Origem #"]??row["Origem#"]??row["Origem"]),dest=parseInt(row["Destino #"]??row["Destino#"]??row["Destino"]);
+        if(isNaN(orig)||isNaN(dest)||!coord[orig]||!coord[dest]){sk++;continue}
+        const opR=norm(row["Tipo de Operação"]).toLowerCase(),op=TIPO_MAP[opR]||"";if(!op){sk++;continue}
+        const[ox,oy]=coord[orig],[dx,dy]=coord[dest];
+        lines.push(csvLine(COLS,{REDE:rn,TIPO:op,ORIGEM_X:ox.toFixed(3),ORIGEM_Y:oy.toFixed(3),DESTINO_X:dx.toFixed(3),DESTINO_Y:dy.toFixed(3),CONDUTOR_I:op==="R"?"":normC(row["Tipo de Condutor Instalado"],mapa),FASES_I:op==="R"?"":normF(row["Fases Instalado"]),CONDUTOR_R:op==="I"?"":normC(row["Tipo de Condutor a Retirar"],mapa),FASES_R:op==="I"?"":normF(row["Fases a Retirar"]),DIST:distT(row)}));ok++;
+      }
+    }
+    procR(getAba(wbO,"Rede MT"),"MT",MT_MAP);
+    procR(getAba(wbO,"Rede BT"),"BT",BT_MAP);
+    dlData.cabos=lines.join("\n");
+    addLog(`  Cabos: ${ok} gerados${sk?" ("+sk+" ignorados)":""}`, "lok");
+  }
+
+  // ── Gerar projeto.csv unificado ──
+  if(mode==="completo" && dlData.postes && dlData.cabos){
+    dlData.unif = "[POSTES]\n" + dlData.postes + "\n\n[CABOS]\n" + dlData.cabos;
+    document.getElementById("btnDlUnif").style.display="flex";
+    addDlCard("ic-unif","ti-files","projeto.csv","Postes + Cabos — PROJETO_LOTE.lsp","unif");
+    addLog("  projeto.csv: arquivo unificado gerado", "lok");
+  }
+
+  dlData.xlsx=wbO;
+  document.getElementById("btnDlXlsx").style.display="flex";
+  addDlCard("ic-xlsx","ti-table",fname.replace(/\.xlsx?$/i,"")+"_corrigido.xlsx","Arquivo com operações ajustadas","xlsx");
+  addLog("✔ Pronto — clique nos arquivos acima para baixar", "lh");
+  document.getElementById("statusDot").style.background="var(--green)";
+  document.getElementById("statusTxt").textContent="Processado com sucesso";
+});
+</script>
+</body>
+</html>

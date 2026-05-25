@@ -48,7 +48,7 @@ def zip_module(module_name: str, version: str) -> Path | None:
                 zf.write(file_path, arcname)
 
     size_kb = zip_path.stat().st_size / 1024
-    print(f"  ✅  {zip_name}  ({size_kb:.1f} KB)")
+    print(f"  [OK]  {zip_name}  ({size_kb:.1f} KB)")
     return zip_path
 
 
@@ -109,7 +109,7 @@ def main():
     print("=" * 60)
     print("\nPróximos passos:")
     print(f"  1. Crie uma Release no GitHub com a tag correta (ex: v1.0.0).")
-    print(f"     → https://github.com/{GITHUB_USER}/{GITHUB_REPO}/releases/new")
+    print(f"     -> https://github.com/{GITHUB_USER}/{GITHUB_REPO}/releases/new")
     print(f"  2. Faça upload dos .zip gerados em dist/.")
     print(f"  3. Faça commit do manifest.json atualizado na branch main.")
     print(f"     O Hub detectará automaticamente as novidades.\n")

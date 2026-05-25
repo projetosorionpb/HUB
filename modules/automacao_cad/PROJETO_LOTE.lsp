@@ -1,6 +1,6 @@
 ;; PROJETO_LOTE.lsp — Insercao em lote de POSTES e CABOS via projeto.csv
 ;; Substitui o uso simultâneo de POSTE_LOTE.lsp + CABO_LOTE.lsp.
-;; Requer: PROJETO_LOTE.dcl no mesmo diretorio ou no caminho de suporte do nanoCAD
+;; Arquivo autonomo: nao requer DCL externo. Entrada via linha de comando.
 ;;
 ;; Formato esperado (projeto.csv gerado pelo conversor_postes.html):
 ;;   [POSTES]
@@ -18,6 +18,7 @@
 ;;
 ;; Historico:
 ;;   [v1] Criado — unifica POSTE_LOTE.lsp e CABO_LOTE.lsp num unico comando.
+;;   [v2] Removida dependencia do DCL externo. Entrada via getfiled/getreal.
 
 
 ;;; ============================================================
@@ -509,10 +510,9 @@
 ;;; ============================================================
 ;;; COMANDO PRINCIPAL: c:PROJETO_LOTE
 ;;; Lê projeto.csv unificado e insere postes + cabos em sequência.
+;;; Sem dependência de DCL externo — entrada via linha de comando.
 ;;; ============================================================
-(defun c:PROJETO_LOTE (/ dcl_id dcl_file dlg_result
-                         v_csv_path v_off_x v_off_y v_ang
-                         off_x off_y ang_fallback
+(defun c:PROJETO_LOTE (/ v_csv_path off_x off_y ang_fallback
                          f_handle linha campos
                          ;; postes
                          lista_dados lista_angs lista_angs_calc lista_angs_rede
@@ -525,47 +525,26 @@
                          ;; compartilhado
                          err_msgs_pos err_msgs_cab
                          cabecalho_pulado continuar achou_postes achou_cabos
-                         _msg _path)
+                         _msg _tmp_r)
 
   (vl-load-com)
 
-  ;;; --- localizar DCL ---
-  (setq dcl_file (findfile "PROJETO_LOTE.dcl"))
-  (if (not dcl_file)
-    (progn (alert "PROJETO_LOTE.dcl nao encontrado!") (exit)))
-
-  ;;; --- abrir dialogo ---
-  (setq dcl_id (load_dialog dcl_file))
-  (if (< dcl_id 0)
-    (progn (alert "Erro ao carregar PROJETO_LOTE.dcl.") (exit)))
-  (if (not (new_dialog "projeto_lote_dlg" dcl_id))
-    (progn (alert "Erro ao abrir projeto_lote_dlg.") (unload_dialog dcl_id) (exit)))
-
-  (set_tile "off_x"     "3.0")
-  (set_tile "off_y"     "0.0")
-  (set_tile "ang_graus" "90")
-
-  (action_tile "btn_browse"
-    "(setq _path (getfiled \"Selecionar projeto.csv\" \"\" \"csv\" 0))
-     (if _path (set_tile \"csv_path\" _path))")
-
-  (action_tile "accept"
-    "(setq v_csv_path (get_tile \"csv_path\")
-           v_off_x    (get_tile \"off_x\")
-           v_off_y    (get_tile \"off_y\")
-           v_ang      (get_tile \"ang_graus\"))
-     (if (= (vl-string-trim \" \" v_csv_path) \"\")
-       (alert \"Selecione o arquivo projeto.csv.\")
-       (done_dialog 1))")
-
-  (setq dlg_result (start_dialog))
-  (unload_dialog dcl_id)
-  (if (/= dlg_result 1)
+  ;;; --- selecionar arquivo CSV ---
+  (setq v_csv_path (getfiled "Selecionar projeto.csv" "" "csv" 0))
+  (if (not v_csv_path)
     (progn (princ "\nCancelado.") (princ) (exit)))
 
-  (setq off_x        (prj-atof-br v_off_x)
-        off_y        (prj-atof-br v_off_y)
-        ang_fallback (* (prj-atof-br v_ang) (/ pi 180.0)))
+  ;;; --- Offset X ---
+  (setq _tmp_r (getreal "\nOffset X da anotacao dos postes <3.0>: "))
+  (setq off_x (if _tmp_r _tmp_r 3.0))
+
+  ;;; --- Offset Y ---
+  (setq _tmp_r (getreal "\nOffset Y da anotacao dos postes <0.0>: "))
+  (setq off_y (if _tmp_r _tmp_r 0.0))
+
+  ;;; --- Angulo fallback ---
+  (setq _tmp_r (getreal "\nAngulo fallback em graus (usado se nao houver cabos) <90>: "))
+  (setq ang_fallback (* (if _tmp_r _tmp_r 90.0) (/ pi 180.0)))
 
   (if (not (findfile v_csv_path))
     (progn (alert (strcat "Arquivo nao encontrado:\n" v_csv_path)) (exit)))
