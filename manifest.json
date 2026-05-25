@@ -61,6 +61,18 @@
       "color": "#ef4444",
       "icon_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><path d=\"M16 20 L26 32 L16 44\" stroke=\"#ef4444\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M48 20 L38 32 L48 44\" stroke=\"#ef4444\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><line x1=\"36\" y1=\"16\" x2=\"28\" y2=\"48\" stroke=\"#ef4444\" stroke-width=\"4\" stroke-linecap=\"round\"/></svg>",
       "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.6-ferramentas/gerador_de_csv_v1.0.1.zip"
+    },
+    "modelo_cad": {
+      "version": "1.0.0",
+      "display_name": "Modelo CAD",
+      "description": "Modelo do Projeto para Nanocad",
+      "type": "web",
+      "exe_name": null,
+      "port": null,
+      "entry": "https://engeselt.sharepoint.com/sites/ENGESELTSOFTWARESESOLUCOESEMTE/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FENGESELTSOFTWARESESOLUCOESEMTE%2FShared%20Documents%2FGeneral%2FMODELOCAD%5FPARA%5FAUTOMACAO&view=0",
+      "color": "#ef4444",
+      "icon_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><circle cx=\"32\" cy=\"32\" r=\"22\" stroke=\"#ef4444\" stroke-width=\"3\"/><path d=\"M10 32 H54 M32 10 C38 16 40 24 40 32 C40 40 38 48 32 54 C26 48 24 40 24 32 C24 24 26 16 32 10 Z\" stroke=\"#ef4444\" stroke-width=\"2.5\" fill=\"none\"/></svg>",
+      "download_url": ""
     }
   }
 }

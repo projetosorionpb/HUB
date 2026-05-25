@@ -445,7 +445,7 @@
   (setq p1 (list ox oy 0.0)
         p2 (list dx dy 0.0))
 
-  (entmake (list '(0 . "LINE") (cons 10 p1) (cons 11 p2) (cons 62 cor) (cons 6 ltype)))
+  (entmake (list '(0 . "LINE") (cons 10 p1) (cons 11 p2) (cons 62 cor) (cons 6 ltype) '(48 . 1.0)))
 
   (setq ang_orig (angle p1 p2)
         ang      ang_orig)
@@ -513,11 +513,13 @@
 ;;; Sem dependência de DCL externo — entrada via linha de comando.
 ;;; ============================================================
 (defun c:PROJETO_LOTE (/ v_csv_path off_x off_y ang_fallback
+                         escala fator_cabo
+                         dcl_path dcl_id dlg_result
                          f_handle linha campos
                          ;; postes
                          lista_dados lista_angs lista_angs_calc lista_angs_rede
-                         segmentos_cabo
-                         idx idx_tmp ang_rad ang_dxf_str dados
+                         segmentos_cabo mapa_coord_500
+                         idx idx_tmp ang_rad ang_dxf_str dados dados_mod
                          num_pos_total num_pos_ok num_pos_erro
                          ;; cabos
                          hdr_cabo idx_map
@@ -529,22 +531,84 @@
 
   (vl-load-com)
 
+  ;;; ============================================================
+  ;;; INTERFACE GRAFICA — DCL gerado dinamicamente em arquivo temp
+  ;;; ============================================================
+  (setq dcl_path (strcat (getenv "TEMP") "\\prj_lote_dlg.dcl"))
+
+  ;; Escreve o DCL no disco
+  (setq _f (open dcl_path "w"))
+  (write-line "prj_lote : dialog {" _f)
+  (write-line "  label = \"PROJETO_LOTE — Configuracao\";" _f)
+  (write-line "  : text { label = \"Escala de plotagem:\"; height = 1; }" _f)
+  (write-line "  : radio_column {" _f)
+  (write-line "    key = \"esc_col\";" _f)
+  (write-line "    : radio_button { key = \"r1000\"; label = \"1:1000  (linha = distancia real)\"; }" _f)
+  (write-line "    : radio_button { key = \"r500\";  label = \"1:500   (linha = dobro da distancia real)\"; }" _f)
+  (write-line "  }" _f)
+  (write-line "  spacer;" _f)
+  (write-line "  : text { label = \"Offset da anotacao dos postes:\"; height = 1; }" _f)
+  (write-line "  : row {" _f)
+  (write-line "    : edit_box { label = \"Offset X\"; key = \"offx\"; edit_width = 8; } " _f)
+  (write-line "    : edit_box { label = \"Offset Y\"; key = \"offy\"; edit_width = 8; }" _f)
+  (write-line "  }" _f)
+  (write-line "  spacer;" _f)
+  (write-line "  : text { label = \"Angulo fallback (graus, usado sem cabos):\"; height = 1; }" _f)
+  (write-line "  : edit_box { label = \"Angulo\"; key = \"angfb\"; edit_width = 8; }" _f)
+  (write-line "  spacer;" _f)
+  (write-line "  ok_cancel;" _f)
+  (write-line "}" _f)
+  (close _f)
+
+  ;; Carrega e exibe o dialogo
+  (setq dcl_id (load_dialog dcl_path))
+  (if (< dcl_id 0)
+    (progn (alert "Erro ao carregar dialogo interno.") (princ) (exit)))
+
+  (if (not (new_dialog "prj_lote" dcl_id))
+    (progn (alert "Erro ao criar dialogo.") (princ) (exit)))
+
+  ;; Valores padrao
+  (set_tile "r1000" "1")
+  (set_tile "offx"  "3.0")
+  (set_tile "offy"  "0.0")
+  (set_tile "angfb" "90")
+
+  ;; Coleta resultado ao confirmar
+  (setq dlg_result (list "1000" "3.0" "0.0" "90"))
+
+  (action_tile "accept"
+    "(setq dlg_result (list
+       (if (= (get_tile \"r500\") \"1\") \"500\" \"1000\")
+       (get_tile \"offx\")
+       (get_tile \"offy\")
+       (get_tile \"angfb\")))
+     (done_dialog 1)")
+
+  (action_tile "cancel" "(done_dialog 0)")
+
+  (setq _dlg_ok (start_dialog))
+  (unload_dialog dcl_id)
+
+  (if (= _dlg_ok 0)
+    (progn (princ "\nCancelado.") (princ) (exit)))
+
+  ;; Extrai valores do resultado
+  (setq escala     (nth 0 dlg_result)
+        off_x      (atof (nth 1 dlg_result))
+        off_y      (atof (nth 2 dlg_result))
+        ang_fallback (* (atof (nth 3 dlg_result)) (/ pi 180.0)))
+
+  (setq fator_cabo (if (= escala "500") 2.0 1.0))
+  (setq *prj-fator-cabo* fator_cabo)
+  (princ (strcat "\nEscala: 1:" escala "  |  OffX=" (rtos off_x 2 2)
+                 "  OffY=" (rtos off_y 2 2)
+                 "  AngFallback=" (rtos (* ang_fallback (/ 180.0 pi)) 2 1) "deg"))
+
   ;;; --- selecionar arquivo CSV ---
   (setq v_csv_path (getfiled "Selecionar projeto.csv" "" "csv" 0))
   (if (not v_csv_path)
     (progn (princ "\nCancelado.") (princ) (exit)))
-
-  ;;; --- Offset X ---
-  (setq _tmp_r (getreal "\nOffset X da anotacao dos postes <3.0>: "))
-  (setq off_x (if _tmp_r _tmp_r 3.0))
-
-  ;;; --- Offset Y ---
-  (setq _tmp_r (getreal "\nOffset Y da anotacao dos postes <0.0>: "))
-  (setq off_y (if _tmp_r _tmp_r 0.0))
-
-  ;;; --- Angulo fallback ---
-  (setq _tmp_r (getreal "\nAngulo fallback em graus (usado se nao houver cabos) <90>: "))
-  (setq ang_fallback (* (if _tmp_r _tmp_r 90.0) (/ pi 180.0)))
 
   (if (not (findfile v_csv_path))
     (progn (alert (strcat "Arquivo nao encontrado:\n" v_csv_path)) (exit)))
@@ -720,6 +784,38 @@
                           (list (nth idx_tmp lista_angs_rede)))))
     (setq idx_tmp (1+ idx_tmp)))
 
+
+  ;;; ============================================================
+  ;;; PASSO 3b — Escala 1:500: multiplica toda a geometria por 2
+  ;;; Usa o primeiro poste como ancora para nao deslocar para longe da origem.
+  ;;; ============================================================
+  (if (and (= escala "500") lista_dados)
+    (progn
+      (setq _anc_x (cdr (assoc 'X (car lista_dados)))
+            _anc_y (cdr (assoc 'Y (car lista_dados))))
+      ;; Reescala postes
+      (setq lista_dados
+        (mapcar
+          '(lambda (d)
+             (subst (cons 'X (+ _anc_x (* fator_cabo (- (cdr (assoc 'X d)) _anc_x))))
+                    (assoc 'X d)
+               (subst (cons 'Y (+ _anc_y (* fator_cabo (- (cdr (assoc 'Y d)) _anc_y))))
+                      (assoc 'Y d) d)))
+          lista_dados))
+      ;; Reescala segmentos de cabo (para calculo de angulo ja foi feito, mas
+      ;; reescala lista_cabos para insercao correta das linhas)
+      (setq lista_cabos
+        (mapcar
+          '(lambda (d)
+             (subst (cons 'ORIGEM_X  (+ _anc_x (* fator_cabo (- (cdr (assoc 'ORIGEM_X  d)) _anc_x))))
+                    (assoc 'ORIGEM_X d)
+               (subst (cons 'ORIGEM_Y  (+ _anc_y (* fator_cabo (- (cdr (assoc 'ORIGEM_Y  d)) _anc_y))))
+                      (assoc 'ORIGEM_Y d)
+                 (subst (cons 'DESTINO_X (+ _anc_x (* fator_cabo (- (cdr (assoc 'DESTINO_X d)) _anc_x))))
+                        (assoc 'DESTINO_X d)
+                   (subst (cons 'DESTINO_Y (+ _anc_y (* fator_cabo (- (cdr (assoc 'DESTINO_Y d)) _anc_y))))
+                          (assoc 'DESTINO_Y d) d)))))
+          lista_cabos))))
 
   ;;; ============================================================
   ;;; PASSO 4 — Inserir postes

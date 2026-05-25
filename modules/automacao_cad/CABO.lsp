@@ -1,15 +1,3 @@
-Excelente escolha. A **Opção 1** é, de longe, a mais estável e fluida para o motor padrão do AutoLISP, pois você aproveita 100% da aceleração de hardware e do rastreamento visual (rubber-band, Osnaps, Ortho) nativos do CAD, sem interrupções.
-
-Aqui está o código completo, limpo e enxuto.
-
-**Como vai funcionar na prática (Escala 1:500):**
-
-1. O comando pede o próximo ponto.
-2. Você aponta o mouse para a direção desejada.
-3. Digita **o tamanho que a linha deve ter na tela** (ex: `20`) e dá *Enter*.
-4. O CAD desenha a linha instantaneamente com 20 de comprimento, e o LISP faz a conta automática para a anotação, escrevendo **10 m**. Tudo em um clique/movimento contínuo.
-
-Segue o código pronto para uso:
 
 ```lisp
 ;; CABO.lsp - Compativel com nanoCAD 5 gratuito (e AutoCAD)
@@ -108,9 +96,9 @@ Segue o código pronto para uso:
   ;;; LISTAS
   ;;; ============================================================
   (setq mt_list (list "CAA 2" "CAA 4" "CAA 1/0" "CAA 4/0" "CAA 336,4"
-                      "P 50 / CAZ 9,5" "P 120 / CAZ 9,5" "P 185 / CAZ 9,5" "Outro"))
+                      "P 50 / CAZ 9,5" "P 120 / CAZ 9,5" "P 185 / CAZ 9,5" "CAL 2" "CAL 1/0" "CAL 4/0" "CAL 336,4" "Outro"))
   (setq mt_desc (list "CAA 2" "CAA 4" "CAA 1/0" "CAA 4/0" "CAA 336,4"
-                      "P 50\\pCAZ 9,5" "P 120\\pCAZ 9,5" "P 185\\pCAZ 9,5" nil))
+                      "P 50\\pCAZ 9,5" "P 120\\pCAZ 9,5" "P 185\\pCAZ 9,5" "CAL 2" "CAL 1/0" "CAL 4/0" "CAL 336,4" nil))
   (setq bt_list (list "M2x1x35+35" "M3x1x35+35" "M3x1x35+35 NI" "M3x1x70+70" "M3x1x70+70 NI"
                       "M3x1x120+70" "M3x1x120+70 NI" "CA 4" "CA 1/0 / CA 4" "Outro"))
   (setq bt_desc (list "M2x1x35+35" "M3x1x35+35" "M3x1x35+35 NI" "M3x1x70+70" "M3x1x70+70 NI"
@@ -148,7 +136,7 @@ Segue o código pronto para uso:
   (action_tile "escala_500" "(set_tile \"escala_1000\" \"0\") (set_tile \"escala_500\" \"1\")")
   (action_tile "tipo_I" "(set_tile \"tipo_I\" \"1\") (set_tile \"tipo_R\" \"0\")")
   (action_tile "tipo_R" "(set_tile \"tipo_I\" \"0\") (set_tile \"tipo_R\" \"1\")")
-  (action_tile "opc_MT" "(setq v_opc_MT (atoi $value)) (if (= v_opc_MT 8) (mode_tile \"desc_livre\" 0) (mode_tile \"desc_livre\" 1))")
+  (action_tile "opc_MT" "(setq v_opc_MT (atoi $value)) (if (= v_opc_MT 12) (mode_tile \"desc_livre\" 0) (mode_tile \"desc_livre\" 1))")
   (action_tile "opc_BT" "(setq v_opc_BT (atoi $value)) (if (= v_opc_BT 9) (mode_tile \"desc_livre\" 0) (mode_tile \"desc_livre\" 1))")
   
   (action_tile "accept"
@@ -180,7 +168,7 @@ Segue o código pronto para uso:
         escala_fator v_escala_fator)
         
   (if (= rede "MT")
-    (setq desc (if (= v_opc_MT 8) v_desc_livre (nth v_opc_MT mt_desc)))
+    (setq desc (if (= v_opc_MT 12) v_desc_livre (nth v_opc_MT mt_desc)))
     (setq desc (if (= v_opc_BT 9) v_desc_livre (nth v_opc_BT bt_desc))))
   (if (not desc) (setq desc ""))
 
