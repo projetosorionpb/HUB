@@ -12,7 +12,7 @@
       "entry": "Substituidor_Blocos_DXF.exe",
       "color": "#00d4ff",
       "icon_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><rect x=\"4\" y=\"4\" width=\"24\" height=\"24\" rx=\"4\" fill=\"#00d4ff\" opacity=\"0.9\"/><rect x=\"36\" y=\"4\" width=\"24\" height=\"24\" rx=\"4\" fill=\"#00d4ff\" opacity=\"0.6\"/><rect x=\"4\" y=\"36\" width=\"24\" height=\"24\" rx=\"4\" fill=\"#00d4ff\" opacity=\"0.6\"/><rect x=\"36\" y=\"36\" width=\"24\" height=\"24\" rx=\"4\" fill=\"#00d4ff\" opacity=\"0.9\"/><line x1=\"28\" y1=\"16\" x2=\"36\" y2=\"16\" stroke=\"#ffffff\" stroke-width=\"3\" stroke-linecap=\"round\"/><line x1=\"16\" y1=\"28\" x2=\"16\" y2=\"36\" stroke=\"#ffffff\" stroke-width=\"3\" stroke-linecap=\"round\"/><line x1=\"48\" y1=\"28\" x2=\"48\" y2=\"36\" stroke=\"#ffffff\" stroke-width=\"3\" stroke-linecap=\"round\"/><line x1=\"28\" y1=\"48\" x2=\"36\" y2=\"48\" stroke=\"#ffffff\" stroke-width=\"3\" stroke-linecap=\"round\"/></svg>",
-      "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.4-ferramentas/substituidor_blocos_v1.0.2.zip"
+      "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.5-ferramentas/substituidor_blocos_v1.0.2.zip"
     },
     "conversor_pdf": {
       "version": "1.0.2",
@@ -24,10 +24,10 @@
       "entry": "Conversor_PDF_para_DWG.exe",
       "color": "#ff8c00",
       "icon_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><rect x=\"10\" y=\"4\" width=\"36\" height=\"44\" rx=\"4\" fill=\"#ff8c00\" opacity=\"0.85\"/><path d=\"M34 4 L46 16 L34 16 Z\" fill=\"#0f1724\"/><path d=\"M34 4 L34 16 L46 16\" fill=\"none\" stroke=\"#ff8c00\" stroke-width=\"1.5\"/><rect x=\"16\" y=\"22\" width=\"24\" height=\"3\" rx=\"1.5\" fill=\"#0f1724\" opacity=\"0.7\"/><rect x=\"16\" y=\"29\" width=\"20\" height=\"3\" rx=\"1.5\" fill=\"#0f1724\" opacity=\"0.7\"/><rect x=\"16\" y=\"36\" width=\"16\" height=\"3\" rx=\"1.5\" fill=\"#0f1724\" opacity=\"0.7\"/><circle cx=\"46\" cy=\"48\" r=\"12\" fill=\"#0f1724\"/><circle cx=\"46\" cy=\"48\" r=\"12\" fill=\"#ff8c00\" opacity=\"0.2\" stroke=\"#ff8c00\" stroke-width=\"1.5\"/><text x=\"46\" y=\"53\" text-anchor=\"middle\" font-size=\"10\" font-weight=\"bold\" fill=\"#ff8c00\" font-family=\"Arial\">PDF</text></svg>",
-      "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.4-ferramentas/conversor_pdf_v1.0.2.zip"
+      "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.5-ferramentas/conversor_pdf_v1.0.2.zip"
     },
     "automacao_cad": {
-      "version": "1.0.4",
+      "version": "1.0.5",
       "display_name": "Automação CAD",
       "description": "Ferramenta para automatização de processos em arquivos CAD.",
       "type": "bat",
@@ -36,7 +36,7 @@
       "entry": "INSTALAR_SCRIPTS.bat",
       "color": "#ef4444",
       "icon_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><circle cx=\"32\" cy=\"32\" r=\"10\" fill=\"none\" stroke=\"#ef4444\" stroke-width=\"3\"/><path d=\"M32 6 L32 14 M32 50 L32 58 M6 32 L14 32 M50 32 L58 32\" stroke=\"#ef4444\" stroke-width=\"3\" stroke-linecap=\"round\"/><path d=\"M14.6 14.6 L20.2 20.2 M43.8 43.8 L49.4 49.4 M49.4 14.6 L43.8 20.2 M20.2 43.8 L14.6 49.4\" stroke=\"#ef4444\" stroke-width=\"3\" stroke-linecap=\"round\"/><circle cx=\"32\" cy=\"32\" r=\"4\" fill=\"#ef4444\"/></svg>",
-      "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.4-ferramentas/automacao_cad_v1.0.4.zip"
+      "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.5-ferramentas/automacao_cad_v1.0.5.zip"
     },
     "gerenciador_obras": {
       "version": "1.0.0",
@@ -60,7 +60,7 @@
       "entry": "conversor_postes.html",
       "color": "#ef4444",
       "icon_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" fill=\"none\"><path d=\"M16 20 L26 32 L16 44\" stroke=\"#ef4444\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M48 20 L38 32 L48 44\" stroke=\"#ef4444\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><line x1=\"36\" y1=\"16\" x2=\"28\" y2=\"48\" stroke=\"#ef4444\" stroke-width=\"4\" stroke-linecap=\"round\"/></svg>",
-      "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.4-ferramentas/gerador_de_csv_v1.0.1.zip"
+      "download_url": "https://github.com/projetosorionpb/HUB/releases/download/v1.0.5-ferramentas/gerador_de_csv_v1.0.1.zip"
     }
   }
 }
