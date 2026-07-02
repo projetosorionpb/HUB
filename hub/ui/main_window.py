@@ -15,9 +15,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, pyqtSlot
 from PyQt6.QtGui import QFont
 
-from hub.config import HUB_VERSION, MANIFEST_PATH
+from hub.config import HUB_VERSION, MANIFEST_PATH, APP_NAME, APP_AUTHOR, APP_ORG
 from hub.core.launcher import open_tool, stop_all
-from hub.core.updater import CheckUpdatesWorker, UpdateWorker
+from hub.core.updater import CheckUpdatesWorker, UpdateWorker, remove_module_files
 from hub.core.hub_self_updater import HubSelfUpdateWorker
 from hub.ui.card_widget import ToolCard
 from hub.ui.update_dialog import UpdateDialog
@@ -28,7 +28,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"Hub de Engenharia  —  EPD-PB  —  v{HUB_VERSION}")
+        self.setWindowTitle(f"{APP_NAME}  —  {APP_ORG}  —  v{HUB_VERSION}")
         self.setMinimumSize(860, 560)
         self.resize(980, 660)
 
@@ -202,7 +202,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.status_label)
         layout.addStretch()
 
-        right = QLabel(f"v{HUB_VERSION}  ·  Desenvolvido por Valdeci Nunes — EPD-PB")
+        right = QLabel(f"v{HUB_VERSION}  ·  Desenvolvido por {APP_AUTHOR} — {APP_ORG}")
         right.setObjectName("StatusRight")
         layout.addWidget(right)
 
@@ -228,10 +228,38 @@ class MainWindow(QMainWindow):
         updates: list[dict] = result.get("updates", [])
         new_modules: list[dict] = result.get("new", [])
         metadata_updates: list[dict] = result.get("metadata_updates", [])
+        removed_modules: list[dict] = result.get("removed", [])
 
         self._pending_updates = updates
         self._pending_new = new_modules
         self.update_btn.setEnabled(True)
+
+        # ── Processa módulos removidos do manifest remoto ──
+        if removed_modules:
+            try:
+                with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+                    manifest = json.load(f)
+            except Exception:
+                manifest = {"hub_version": HUB_VERSION, "modules": {}}
+
+            removed_names = []
+            for item in removed_modules:
+                name = item["name"]
+                display = item["display_name"]
+                # Remove do manifest local
+                manifest.get("modules", {}).pop(name, None)
+                # Remove arquivos do disco
+                remove_module_files(name)
+                # Remove card da UI
+                self._remove_card(name)
+                removed_names.append(display)
+
+            with open(MANIFEST_PATH, "w", encoding="utf-8") as f:
+                json.dump(manifest, f, indent=2, ensure_ascii=False)
+
+            if removed_names:
+                msg = f"Módulo(s) descontinuado(s) removido(s): {', '.join(removed_names)}"
+                ToastNotification(self, msg, type="info", duration_ms=6000).show_toast()
 
         # Processa os módulos web (auto_register) e atualizações de metadados imediatamente
         auto_registered = False
@@ -433,6 +461,25 @@ class MainWindow(QMainWindow):
 
     def _set_status(self, msg: str):
         self.status_label.setText(msg)
+
+    def _remove_card(self, module_name: str):
+        """Remove um card da UI e reorganiza a grid."""
+        card = self._cards.pop(module_name, None)
+        if not card:
+            return
+        self.grid.removeWidget(card)
+        card.deleteLater()
+        self._card_count -= 1
+
+        # Reorganiza todos os cards restantes na grid
+        remaining = list(self._cards.values())
+        # Remove todos do layout
+        for c in remaining:
+            self.grid.removeWidget(c)
+        # Re-adiciona na ordem correta
+        for idx, c in enumerate(remaining):
+            row, col = divmod(idx, 2)
+            self.grid.addWidget(c, row, col)
 
     def closeEvent(self, event):
         stop_all()

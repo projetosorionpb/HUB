@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 
+from hub.config import APP_NAME, APP_ORG
 from hub.ui.main_window import MainWindow
 
 
@@ -27,8 +28,8 @@ def main():
     )
 
     app = QApplication(sys.argv)
-    app.setApplicationName("Hub de Engenharia")
-    app.setOrganizationName("EPD-PB")
+    app.setApplicationName(APP_NAME)
+    app.setOrganizationName(APP_ORG)
 
     # Fonte padrão
     font = QFont("Segoe UI", 10)

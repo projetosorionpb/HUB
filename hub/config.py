@@ -5,6 +5,16 @@ import os
 import sys
 
 # ---------------------------------------------------------------------------
+# Identidade do projeto
+# ---------------------------------------------------------------------------
+APP_NAME = "Hub de Engenharia"
+APP_AUTHOR = "Valdeci Nunes"
+APP_ORG = "EPD-PB"
+
+# Versão atual do hub (atualizar a cada release)
+HUB_VERSION = "1.1.0"
+
+# ---------------------------------------------------------------------------
 # GitHub
 # ---------------------------------------------------------------------------
 GITHUB_USER = "projetosorionpb"
@@ -17,7 +27,7 @@ MANIFEST_RAW_URL = (
 )
 
 # ---------------------------------------------------------------------------
-# Caminhos — relativos ao hub para funcionar em rede compartilhada
+# Caminhos — relativos ao executável/projeto
 # ---------------------------------------------------------------------------
 if getattr(sys, 'frozen', False):
     # Rodando como executável PyInstaller
@@ -33,5 +43,3 @@ MANIFEST_PATH = os.path.join(_HUB_ROOT, "manifest.json")
 if not os.path.exists(MODULES_DIR):
     os.makedirs(MODULES_DIR, exist_ok=True)
 
-# Versão atual do hub
-HUB_VERSION = "1.0.2"

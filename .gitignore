@@ -1,0 +1,36 @@
+# ──────────────────────────────────────────────────────────
+# Hub de Engenharia — .gitignore
+# ──────────────────────────────────────────────────────────
+
+# Artefatos de Build (PyInstaller)
+build/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+
+# Ambientes virtuais
+.venv/
+venv/
+.env
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs e temporários
+*.log
+*.tmp
+*.bak
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini

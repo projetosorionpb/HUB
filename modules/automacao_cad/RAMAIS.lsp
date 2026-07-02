@@ -3,35 +3,30 @@
 ;;; ============================================================
 (vl-load-com)
 
+;; Variáveis globais para memória
+(if (not *ramais-handles*) (setq *ramais-handles* nil))
+(if (not *ramais-mtext-handles*) (setq *ramais-mtext-handles* nil))
+
 ;;; ============================================================
-;;; ESCRITA DO DCL DINÂMICO (Adaptável ao número de linhas)
+;;; ESCRITA DO DCL DINÂMICO
 ;;; ============================================================
 (defun ramais-write-dynamic-dcl (dclpath num-lines / f i)
   (setq f (open dclpath "w"))
   (if (not f) (progn (alert "Erro ao criar DCL temporario na pasta TEMP.") (exit)))
 
-  (write-line "ramais_menu : dialog {" f)
-  (write-line "  label = \"RAMAIS - Gerenciador de Ramais\"; width = 42;" f)
-  (write-line "  : column {" f)
-  (write-line "    : boxed_column { label = \"Opcoes\";" f)
-  (write-line "      : button { key = \"btn_ver_ponto\"; label = \"VER / CADASTRAR PONTO\"; width = 32; }" f)
-  (write-line "      spacer_0;" f)
-  (write-line "      : button { key = \"btn_ver_lista\"; label = \"VER LISTA COMPLETA\"; width = 32; }" f)
-  (write-line "      spacer_0;" f)
-  (write-line "      : button { key = \"btn_gerar\"; label = \"GERAR LISTA (MTEXT)\"; width = 32; }" f)
-  (write-line "    } spacer; : button { key = \"btn_fechar\"; label = \"Fechar\"; width = 14; is_cancel = true; alignment = centered; }" f)
-  (write-line "  }" f)
-  (write-line "}" f)
-
   (write-line "ramais_lista : dialog {" f)
-  (write-line "  label = \"Lista Completa de Ramais\"; width = 64;" f)
+  (write-line "  label = \"Gerenciador de Ramais - Painel Central\"; width = 70;" f)
   (write-line "  : column {" f)
-  (write-line "    : list_box { key=\"lst_completa\"; width=60; height=22; multiple_select=false; }" f)
-  (write-line "    spacer; : row { alignment = centered;" f)
-  (write-line "      : button { key=\"btn_carregar_lista\"; label=\"Carregar MTEXT\"; width=16; }" f)
-  (write-line "      : button { key=\"btn_limpar_lista\"; label=\"Limpar Lista\"; width=16; }" f)
-  (write-line "      : button { key=\"btn_fechar_lista\"; label=\"Fechar\"; width=16; is_cancel=true; }" f)
-  (write-line "    }" f)
+  (write-line "    : list_box { key=\"lst_completa\"; width=66; height=22; multiple_select=false; }" f)
+  (write-line "    spacer;" f)
+  (write-line "    : button { key=\"btn_ver_ponto\"; label=\"VER / CADASTRAR PONTO\"; alignment=centered; width=40; is_default=true; }" f)
+  (write-line "    spacer;" f)
+  (write-line "    : row { alignment = centered;" f)
+  (write-line "      : button { key=\"btn_gerar_lista\"; label=\"Gerar Novo\"; width=14; }" f)
+  (write-line "      : button { key=\"btn_atualizar_mtext\"; label=\"Atualizar Vinculado\"; width=20; }" f)
+  (write-line "      : button { key=\"btn_carregar_lista\"; label=\"Carregar\"; width=14; }" f)
+  (write-line "      : button { key=\"btn_limpar_lista\"; label=\"Limpar\"; width=14; }" f)
+  (write-line "    } spacer; : button { key=\"btn_fechar_lista\"; label=\"Fechar\"; width=16; is_cancel=true; alignment=centered; }" f)
   (write-line "  }" f)
   (write-line "}" f)
 
@@ -46,7 +41,6 @@
   (write-line "  }" f)
   (write-line "}" f)
 
-  ;; DIÁLOGO DE CONFIRMAÇÃO DE SEGURANÇA
   (write-line "ramais_confirm : dialog {" f)
   (write-line "  label = \"Confirmacao de Seguranca\"; width = 45;" f)
   (write-line "  : column {" f)
@@ -59,17 +53,38 @@
   (write-line "  }" f)
   (write-line "}" f)
 
-  ;; DIÁLOGO DO PONTO É GERADO DINAMICAMENTE
+  (write-line "ramais_sync : dialog {" f)
+  (write-line "  label = \"Conflito de Sincronizacao\"; width = 50;" f)
+  (write-line "  : column {" f)
+  (write-line "    : text { label = \"Diferenca detectada entre o arquivo RAMAIS.txt\"; }" f)
+  (write-line "    : text { label = \"e o texto MTEXT no desenho.\"; }" f)
+  (write-line "    spacer;" f)
+  (write-line "    : text { label = \"Qual fonte de dados voce deseja manter?\"; alignment = centered; }" f)
+  (write-line "    spacer;" f)
+  (write-line "    : row { alignment = centered;" f)
+  (write-line "      : button { key = \"btn_sync_txt\"; label = \"Manter RAMAIS.txt\"; width = 20; }" f)
+  (write-line "      : button { key = \"btn_sync_mtext\"; label = \"Manter MTEXT\"; width = 20; is_default = true; }" f)
+  (write-line "    }" f)
+  (write-line "  }" f)
+  (write-line "}" f)
+
   (if (not num-lines) (setq num-lines 8))
   (if (< num-lines 4) (setq num-lines 4))
   
   (write-line "ramais_ponto : dialog {" f)
-  (write-line "  label = \"Ramais do Ponto\"; width = 56;" f)
+  (write-line "  label = \"Ramais do Ponto\"; width = 64;" f)
   (write-line "  : column {" f)
   (write-line "    : text { key = \"txt_titulo\"; label = \"Ponto: ---\"; width = 50; } spacer_0;" f)
+  
+  (write-line "    : row { alignment = centered;" f)
+  (write-line "      : button { key=\"btn_q_reinst\"; label=\"REINST. IP-RI\"; }" f)
+  (write-line "      : button { key=\"btn_q_rec\"; label=\"REC. CALCADA\"; }" f)
+  (write-line "      : button { key=\"btn_q_conc\"; label=\"CONC. BASE\"; }" f)
+  (write-line "      : button { key=\"btn_q_comp\"; label=\"COMPRESSOR\"; }" f)
+  (write-line "    } spacer_0;" f)
+
   (write-line "    : boxed_column { label = \"Ramais cadastrados (Junta itens iguais auto)\";" f)
   
-  ;; Loop que cria a quantidade exata de linhas necessárias
   (setq i 1)
   (while (<= i num-lines)
     (write-line (strcat "      : edit_box { key=\"ed_l" (itoa i) "\"; label=\"Linha " (itoa i) ":\"; edit_width=40; }") f)
@@ -89,25 +104,84 @@
 )
 
 ;;; ============================================================
-;;; CAMINHOS E ARQUIVOS 
+;;; CAMINHOS E ARQUIVOS (Segurança na Memória)
 ;;; ============================================================
-(defun ramais-read-file (fp / f ln acc)
-  (setq acc '())
+(defun ramais-split-by-comma (str / i ch res cur)
+  (setq res nil cur "" i 1)
+  (while (<= i (strlen str))
+    (setq ch (substr str i 1))
+    (if (= ch ",")
+      (if (not (= cur "")) (setq res (append res (list cur)) cur ""))
+      (setq cur (strcat cur ch))
+    )
+    (setq i (1+ i))
+  )
+  (if (not (= cur "")) (setq res (append res (list cur))))
+  res
+)
+
+(defun ramais-read-file (fp / f ln acc pos hstr temp-h temp-m)
+  (setq acc '() temp-h nil temp-m nil)
   (setq f (open fp "r"))
-  (if f (progn (while (setq ln (read-line f)) (setq acc (append acc (list ln)))) (close f)))
+  (if f
+    (progn
+      (while (setq ln (read-line f))
+        (cond
+          ((wcmatch ln ";; H:*=*")
+           (setq hstr (substr ln 6))
+           (setq pos (vl-string-search "=" hstr))
+           (if pos
+             (setq temp-h (append temp-h (list (cons (atoi (substr hstr 1 pos)) (substr hstr (+ pos 2))))))
+           )
+          )
+          ((wcmatch ln ";; MTEXT_HANDLES=*")
+           (setq hstr (substr ln 18))
+           (setq temp-m (ramais-split-by-comma hstr))
+          )
+          ((not (wcmatch ln ";;--- METADATA ---"))
+           (setq acc (append acc (list ln)))
+          )
+        )
+      )
+      (close f)
+      ;; Evita limpar handles por erro de leitura
+      (setq *ramais-handles* temp-h)
+      (setq *ramais-mtext-handles* temp-m)
+    )
+  )
   acc
 )
 
-(defun ramais-write-file (fp lines / f ln)
+(defun ramais-write-file (fp lines / f ln hstr)
   (setq f (open fp "w"))
-  (if f (progn (foreach ln lines (write-line ln f)) (close f) T) nil)
+  (if f
+    (progn
+      (foreach ln lines (write-line ln f))
+      (if (or *ramais-handles* *ramais-mtext-handles*)
+        (write-line ";;--- METADATA ---" f)
+      )
+      (if *ramais-handles*
+        (foreach h *ramais-handles*
+          (write-line (strcat ";; H:" (itoa (car h)) "=" (cdr h)) f)
+        )
+      )
+      (if *ramais-mtext-handles*
+        (progn
+          (setq hstr "")
+          (foreach h *ramais-mtext-handles* (setq hstr (strcat hstr h ",")))
+          (write-line (strcat ";; MTEXT_HANDLES=" hstr) f)
+        )
+      )
+      (close f)
+      T
+    )
+    nil
+  )
 )
 
 ;;; ============================================================
-;;; SMART MERGE - LÓGICA DE FUSÃO INTELIGENTE E ORDENAÇÃO CUSTOM
+;;; SMART MERGE - LÓGICA DE FUSÃO INTELIGENTE
 ;;; ============================================================
-
-;; Extrai e conta o multiplicador (ex: "(2X)") do fim do texto
 (defun extract-multiplier (str / base num)
   (setq base str num 1)
   (cond
@@ -131,7 +205,6 @@
   (cons base num)
 )
 
-;; Isola o numero de uma string contendo "RS"
 (defun extract-rs-data (str / i ch num-str pre post inside-num)
   (setq i 1 num-str "" pre "" post "" inside-num nil)
   (while (<= i (strlen str))
@@ -152,11 +225,9 @@
   (if (= num-str "") nil (list pre post (atoi num-str)))
 )
 
-;; Define pesos hierárquicos para a ordenação personalizada das linhas
 (defun ramais-get-line-weight (str / s)
   (setq s (strcase str))
   (cond
-    ;; 1. Linhas que contém TROCAR
     ((wcmatch s "*TROCAR*")
      (cond
        ((wcmatch s "*M AC*") 10)
@@ -169,7 +240,6 @@
        (T 19)
      )
     )
-    ;; 2. Linhas que contém REINST e RS
     ((or (wcmatch s "*REINST*") (wcmatch s "*RS*"))
      (cond
        ((wcmatch s "*M AC*") 20)
@@ -180,18 +250,13 @@
        (T 29)
      )
     )
-    ;; 3. Linhas que contém IP-RI
     ((wcmatch s "*IP-RI*") 30)
-    ;; 4. Linhas que contém REC*CAL*ADA
     ((wcmatch s "*REC*CAL*ADA*") 40)
-    ;; 5. Linhas que contém CONC*BASE
     ((wcmatch s "*CONC*BASE*") 50)
-    ;; Outros (Garante estabilidade para textos não mapeados)
     (T 100)
   )
 )
 
-;; Executa a ordenação estável baseada nas regras de negócio informadas
 (defun ramais-sort-lines-by-rules (lines / weighted idx item res)
   (setq weighted '() idx 0)
   (foreach str lines
@@ -202,7 +267,7 @@
   (setq weighted (vl-sort weighted 
     '(lambda (a b) 
        (if (= (car a) (car b))
-         (< (cadr a) (cadr b)) ;; Se o subgrupo for igual, mantém a ordem original digitada
+         (< (cadr a) (cadr b))
          (< (car a) (car b))
        )
      )
@@ -214,7 +279,6 @@
   (reverse res)
 )
 
-;; Remove múltiplos espaços internos para garantir a fusão perfeita de textos com pequenos erros de digitação
 (defun ramais-normalize-spaces (str / out)
   (setq out str)
   (while (vl-string-search "  " out)
@@ -223,14 +287,12 @@
   out
 )
 
-;; Motor Central de Fusão de Linhas
 (defun ramais-smart-merge-lines (lines / result rs-dict ipri-dict others str data key val num match pos res-str num-str)
   (setq rs-dict nil ipri-dict nil others nil)
   (foreach str lines
     (setq str (r-trim (strcase str)))
     (if (not (= str ""))
       (cond
-        ;; REGRA 1: Contém RS (Soma números)
         ((wcmatch str "*RS*")
          (setq data (extract-rs-data str))
          (if data
@@ -246,7 +308,6 @@
            (setq others (append others (list str)))
          )
         )
-        ;; REGRA 2: Contém IP-RI ou REC*CAL*ADA (Agrupa, limpa espaços duplicados e soma os multiplicadores X)
         ((or (wcmatch str "*IP-RI*") (wcmatch str "*REC*CAL*ADA*"))
          (setq data (extract-multiplier str))
          (setq key (ramais-normalize-spaces (car data)))
@@ -257,13 +318,11 @@
            (setq ipri-dict (append ipri-dict (list (cons key val))))
          )
         )
-        ;; REGRA 3: Demais linhas (Mantém intactas)
         (T (setq others (append others (list str))))
       )
     )
   )
   
-  ;; Reconstrói a lista formatada
   (setq result nil)
   (foreach itm others (setq result (append result (list itm))))
   (foreach itm ipri-dict
@@ -281,13 +340,11 @@
     (setq res-str (strcat (substr key 1 pos) num-str (substr key (+ pos 4))))
     (setq result (append result (list res-str)))
   )
-  
-  ;; Aplica a ordenação customizada solicitada antes de retornar o bloco de linhas
   (ramais-sort-lines-by-rules result)
 )
 
 ;;; ============================================================
-;;; UTILITÁRIOS E PARSERS 
+;;; UTILITÁRIOS E PARSERS
 ;;; ============================================================
 (defun r-trim (s / out ch)
   (setq out s)
@@ -332,7 +389,6 @@
   )
   (if cur-num (setq raw-lst (append raw-lst (list (cons cur-num cur-lines)))))
   
-  ;; Unifica P# Duplicados
   (setq merged nil)
   (foreach blk raw-lst
     (setq match (assoc (car blk) merged))
@@ -351,7 +407,6 @@
     )
   )
 
-  ;; Aplica Smart Merge nas linhas e Ordena
   (setq final-lst nil)
   (foreach blk merged
     (setq final-lst (append final-lst (list (cons (car blk) (ramais-smart-merge-lines (cdr blk))))))
@@ -404,7 +459,7 @@
 )
 
 ;;; ============================================================
-;;; EXTRATOR DE MTEXT E ATUALIZAÇÕES
+;;; EXTRATOR DE MTEXT E CHECAGEM NO DWG
 ;;; ============================================================
 (defun ramais-get-full-mtext (ename / ent txt)
   (setq ent (entget ename) txt "")
@@ -445,39 +500,156 @@
   (vl-remove-if '(lambda (blk) (= (car blk) num)) lst)
 )
 
-(defun ramais-extract-tag (ename / txt i ch depth acc tag)
-  (setq txt (ramais-get-full-mtext ename) i 1 depth 0 acc "" tag nil)
-  (while (and (<= i (strlen txt)) (not tag))
-    (setq ch (substr txt i 1))
+(defun ramais-is-ponto-verde (ename / ent layer-name color txt-raw txt-clean tag-data)
+  (setq ent (entget ename))
+  (setq layer-name (strcase (cdr (assoc 8 ent))))
+  (if (not (= layer-name "FORMATO"))
+    nil
+    (progn
+      (setq color (cdr (assoc 62 ent)))
+      (if (and color (not (= color 3)) (not (= color 0)) (not (= color 256)))
+        nil
+        (progn
+          (setq txt-raw (ramais-get-full-mtext ename))
+          (setq txt-clean (ramais-strip-mtext-format txt-raw))
+          (setq txt-clean (r-trim (strcase txt-clean)))
+          (if (> (strlen txt-raw) 200)
+            nil
+            (ramais-parse-p-tag txt-clean)
+          )
+        )
+      )
+    )
+  )
+)
+
+(defun ramais-strip-mtext-format (str / out i ch skip-until-semi brace-depth)
+  (setq out "" i 1 skip-until-semi nil brace-depth 0)
+  (while (<= i (strlen str))
+    (setq ch (substr str i 1))
     (cond
-      ((= ch "(") (setq acc "(" depth 1))
-      ((and (= depth 1) (= ch ")"))
-       (setq acc (strcat acc ")"))
-       (if (ramais-parse-p-tag acc) (setq tag acc))
-       (setq depth 0 acc ""))
-      ((= depth 1) (setq acc (strcat acc ch)))
+      (skip-until-semi
+       (if (= ch ";") (setq skip-until-semi nil))
+      )
+      ((= ch "\\")
+       (setq i (1+ i))
+       (if (<= i (strlen str))
+         (progn
+           (setq ch (substr str i 1))
+           (cond
+             ((or (= ch "P") (= ch "p")) (setq out (strcat out " ")))
+             ((wcmatch ch "C,F,H,W,T,Q,S,A,c,f,h,w,t,q,s,a") (setq skip-until-semi T))
+             ((= ch "~") (setq out (strcat out " ")))
+             (T )
+           )
+         )
+       )
+      )
+      ((= ch "{") (setq brace-depth (1+ brace-depth)))
+      ((= ch "}") (if (> brace-depth 0) (setq brace-depth (1- brace-depth))))
+      (T (setq out (strcat out ch)))
     )
     (setq i (1+ i))
   )
-  tag
+  (r-trim out)
+)
+
+(defun ramais-extract-tag (ename / txt-raw txt-clean tag-data)
+  (setq txt-raw (ramais-get-full-mtext ename))
+  (setq txt-clean (r-trim (strcase (ramais-strip-mtext-format txt-raw))))
+  (setq tag-data (ramais-parse-p-tag txt-clean))
+  (if tag-data (strcat "(P" (itoa (car tag-data)) ")") nil)
+)
+
+(defun ramais-get-all-pontos-verdes ( / ss i ename tag-data result num)
+  (setq result nil)
+  (setq ss (ssget "X" '((0 . "TEXT,MTEXT") (8 . "FORMATO"))))
+  (if ss
+    (progn
+      (setq i 0)
+      (while (< i (sslength ss))
+        (setq ename (ssname ss i))
+        (setq tag-data (ramais-is-ponto-verde ename))
+        (if tag-data
+          (progn
+            (setq num (car tag-data))
+            (if (not (assoc num result))
+              (setq result (append result (list (cons num ename))))
+            )
+          )
+        )
+        (setq i (1+ i))
+      )
+    )
+  )
+  result
+)
+
+(defun ramais-check-ponto-verde (num / pontos match)
+  (setq pontos (ramais-get-all-pontos-verdes))
+  (setq match (assoc num pontos))
+  (if match (cdr match) nil)
+)
+
+(defun ramais-auto-sync-pontos (lst filepath / new-lst synced hmatch ename tag-str new-tag new-num num blk pontos-verdes pv-match updated-handles)
+  (setq new-lst nil synced nil)
+  (setq pontos-verdes (ramais-get-all-pontos-verdes))
+  (setq updated-handles *ramais-handles*)
+
+  (foreach blk lst
+    (setq num (car blk))
+    (setq hmatch (assoc num updated-handles))
+    
+    (if hmatch
+      (progn
+        (setq ename (handent (cdr hmatch)))
+        (if (and ename (entget ename))
+          (progn
+            (setq tag-str (ramais-extract-tag ename))
+            (if (and tag-str (not (= tag-str (strcat "(P" (itoa num) ")"))))
+              (progn
+                (setq new-tag (ramais-parse-p-tag (strcase tag-str)))
+                (if new-tag
+                  (progn
+                    (setq new-num (car new-tag))
+                    (princ (strcat "\n[RAMAIS] Ponto (P" (itoa num) ") renomeado para (P" (itoa new-num) ") automaticamente!"))
+                    (setq updated-handles (vl-remove-if '(lambda (h) (= (car h) num)) updated-handles))
+                    (setq updated-handles (append updated-handles (list (cons new-num (cdr hmatch)))))
+                    (setq num new-num)
+                    (setq synced T)
+                  )
+                )
+              )
+            )
+          )
+          (setq updated-handles (vl-remove-if '(lambda (h) (= (car h) num)) updated-handles))
+        )
+        (setq new-lst (append new-lst (list (cons num (cdr blk)))))
+      )
+      (progn
+        (setq pv-match (assoc num pontos-verdes))
+        (if pv-match
+          (progn
+            (setq updated-handles (append updated-handles (list (cons num (cdr (assoc 5 (entget (cdr pv-match))))))))
+            (princ (strcat "\n[RAMAIS] Ponto (P" (itoa num) ") vinculado ao objeto verde no DWG."))
+          )
+        )
+        (setq new-lst (append new-lst (list (cons num (cdr blk)))))
+      )
+    )
+  )
+
+  (setq *ramais-handles* updated-handles)
+
+  (if synced
+    (progn (setq new-lst (vl-sort new-lst '(lambda (a b) (< (car a) (car b))))) new-lst)
+    lst
+  )
 )
 
 ;;; ============================================================
 ;;; DIÁLOGOS
 ;;; ============================================================
-(defun ramais-dlg-main (dclpath / dcl-id key)
-  (setq dcl-id (load_dialog dclpath))
-  (new_dialog "ramais_menu" dcl-id)
-  (action_tile "btn_ver_ponto" "(done_dialog 1)")
-  (action_tile "btn_ver_lista" "(done_dialog 2)")
-  (action_tile "btn_gerar"     "(done_dialog 3)")
-  (action_tile "btn_fechar"    "(done_dialog 0)")
-  (setq key (start_dialog))
-  (unload_dialog dcl-id)
-  key
-)
-
-;; Função auxiliar para chamar a caixa de confirmação Sim/Não
 (defun ramais-dlg-confirm (msg / dclpath dcl-id key)
   (setq dclpath (strcat (getvar "TEMPPREFIX") "RAMAIS_TEMP.dcl"))
   (setq dcl-id (load_dialog dclpath))
@@ -494,11 +666,24 @@
   )
 )
 
-(defun ramais-dlg-ponto (num filepath lst / dclpath dcl-id key match campos i val _new_lines updated lines-count loop_pt action_str)
+(defun ramais-dlg-sync-conflict (dclpath / dcl-id key)
+  (setq dcl-id (load_dialog dclpath))
+  (if (new_dialog "ramais_sync" dcl-id)
+    (progn
+      (action_tile "btn_sync_txt" "(done_dialog 1)")
+      (action_tile "btn_sync_mtext" "(done_dialog 2)")
+      (setq key (start_dialog))
+      (unload_dialog dcl-id)
+      key
+    )
+    2
+  )
+)
+
+(defun ramais-dlg-ponto (num filepath lst / dclpath dcl-id key match campos i val _new_lines updated lines-count loop_pt action_str dwg-ename hmatch insert-quick-text)
   (setq match (assoc num lst))
   (setq campos (if match (cdr match) '()))
   
-  ;; Conta as linhas reais e garante pelo menos 8 na interface inicial
   (setq campos (vl-remove-if '(lambda (x) (= (r-trim x) "")) campos))
   (if (< (length campos) 8) (setq campos (append campos (list "" "" "" "" "" "" "" ""))))
   (setq lines-count (length campos))
@@ -513,6 +698,25 @@
     (new_dialog "ramais_ponto" dcl-id)
     (set_tile "txt_titulo" (strcat "Ponto: (P" (itoa num) ")"))
     
+    (defun insert-quick-text (txt / j found v)
+      (setq j 1 found nil)
+      (while (and (<= j lines-count) (not found))
+        (setq v (get_tile (strcat "ed_l" (itoa j))))
+        (if (= (r-trim v) "")
+          (progn
+            (set_tile (strcat "ed_l" (itoa j)) txt)
+            (setq found T)
+          )
+        )
+        (setq j (1+ j))
+      )
+    )
+    
+    (action_tile "btn_q_reinst" "(insert-quick-text \"REINST. IP-RI\")")
+    (action_tile "btn_q_rec"    (strcat "(insert-quick-text \"REC. CAL" (chr 199) "ADA\")"))
+    (action_tile "btn_q_conc"   "(insert-quick-text \"CONC. BASE\")")
+    (action_tile "btn_q_comp"   "(insert-quick-text \"USO DE COMPRESSOR\")")
+
     (setq i 1)
     (foreach val campos (set_tile (strcat "ed_l" (itoa i)) val) (setq i (1+ i)))
     
@@ -532,53 +736,90 @@
     (unload_dialog dcl-id)
     
     (cond
-      ((= key 1) ;; SALVAR
-       (setq loop_pt nil)
-       (setq _new_lines (ramais-smart-merge-lines _new_lines))
-       (setq updated (ramais-set-ponto lst num _new_lines))
-       (ramais-write-file filepath (ramais-format-file-data updated))
-       (princ (strcat "\nPonto (P" (itoa num) ") salvo com sucesso."))
+      ((= key 1) 
+       (setq dwg-ename (ramais-check-ponto-verde num))
+       
+       (if (not dwg-ename)
+         (if (ramais-dlg-confirm (strcat "ATENCAO: Ponto (P" (itoa num) ") nao encontrado\nna layer FORMATO com cor verde.\nDeseja cadastrar mesmo assim?"))
+           (progn
+             (setq loop_pt nil _new_lines (ramais-smart-merge-lines _new_lines))
+             (setq updated (ramais-set-ponto lst num _new_lines))
+             (ramais-write-file filepath (ramais-format-file-data updated))
+             (ramais-silent-update-mtext updated)
+             (princ (strcat "\nPonto (P" (itoa num) ") salvo SEM vinculo no DWG."))
+             (setq lst updated)
+           )
+           (setq loop_pt T)
+         )
+         (progn
+           (setq loop_pt nil _new_lines (ramais-smart-merge-lines _new_lines))
+           (setq updated (ramais-set-ponto lst num _new_lines))
+           (setq hmatch (assoc num *ramais-handles*))
+           (if hmatch
+             (setq *ramais-handles* (subst (cons num (cdr (assoc 5 (entget dwg-ename)))) hmatch *ramais-handles*))
+             (setq *ramais-handles* (append *ramais-handles* (list (cons num (cdr (assoc 5 (entget dwg-ename)))))))
+           )
+           (ramais-write-file filepath (ramais-format-file-data updated))
+           (ramais-silent-update-mtext updated)
+           (princ (strcat "\nPonto (P" (itoa num) ") salvo e vinculado."))
+           (setq lst updated)
+         )
+       )
       )
-      ((= key 4) ;; NOVA LINHA
+      ((= key 4) 
        (setq campos (append _new_lines (list "")))
        (setq lines-count (length campos))
       )
-      ((= key 2) ;; EXCLUIR (Com confirmação)
+      ((= key 2) 
        (if (ramais-dlg-confirm (strcat "Deseja realmente EXCLUIR o ponto (P" (itoa num) ")?"))
          (progn
-           (setq loop_pt nil)
-           (setq updated (ramais-del-ponto lst num))
+           (setq loop_pt nil updated (ramais-del-ponto lst num))
+           (setq *ramais-handles* (vl-remove-if '(lambda (h) (= (car h) num)) *ramais-handles*))
            (ramais-write-file filepath (ramais-format-file-data updated))
+           (ramais-silent-update-mtext updated)
            (princ (strcat "\nPonto (P" (itoa num) ") EXCLUIDO com sucesso."))
+           (setq lst updated)
          )
-         (setq loop_pt T) ;; Se cancelar, mantém a janela do ponto aberta
+         (setq loop_pt T) 
        )
       )
       (T (setq loop_pt nil))
     )
   )
+  lst
 )
 
-(defun ramais-dlg-lista (dclpath filepath / dcl-id lines ln key)
+(defun ramais-dlg-lista (dclpath filepath / dcl-id key lines ln)
   (setq dcl-id (load_dialog dclpath))
   (new_dialog "ramais_lista" dcl-id)
+  
   (setq lines (ramais-read-file filepath))
-  (if (= (length lines) 0) (setq lines (list "  << Arquivo vazio >>")))
   (start_list "lst_completa")
-  (foreach ln lines (add_list ln))
+  (if (or (not lines) (= (length lines) 0))
+    (add_list "  << Arquivo vazio >>")
+    (foreach ln lines (add_list ln))
+  )
   (end_list)
   
-  (action_tile "btn_carregar_lista" "(done_dialog 3)")
-  (action_tile "btn_limpar_lista" "(done_dialog 2)")
-  (action_tile "btn_fechar_lista" "(done_dialog 0)")
+  (action_tile "btn_ver_ponto"       "(done_dialog 1)")
+  (action_tile "btn_gerar_lista"     "(done_dialog 4)")
+  (action_tile "btn_atualizar_mtext" "(done_dialog 6)")
+  (action_tile "btn_carregar_lista"  "(done_dialog 3)")
+  (action_tile "btn_limpar_lista"    "(done_dialog 2)")
+  (action_tile "btn_fechar_lista"    "(done_dialog 0)")
   
   (setq key (start_dialog))
   (unload_dialog dcl-id)
   
-  (if (= key 2) ;; LIMPAR LISTA COMPLETA (Com confirmação)
+  (if (= key 2)
     (if (ramais-dlg-confirm "Deseja realmente LIMPAR TODA A LISTA de ramais?")
-      (progn (ramais-write-file filepath '()) (princ "\nTodos os ramais foram excluuidos com sucesso.") 2)
-      0
+      (progn 
+        (ramais-write-file filepath '())
+        (ramais-silent-update-mtext '())
+        (princ "\nTodos os ramais foram excluidos com sucesso.")
+        5
+      )
+      5
     )
     key
   )
@@ -596,135 +837,255 @@
 )
 
 ;;; ============================================================
-;;; GERAR MTEXT NO DESENHO
+;;; GERAR E ATUALIZAR MTEXT NO DESENHO
 ;;; ============================================================
 (defun ramais-gerar-mtext (lst ncol / total ipc col-texts i ci blk chunk sep pt larg ins-pt ct)
-  (if (= (length lst) 0) (progn (alert "Nenhum ponto cadastrado.") (exit)))
-  (setq total (length lst) ipc (/ (+ total ncol -1) ncol) col-texts '() i 0)
-  
-  (repeat ncol
-    (setq chunk "" ci 0)
-    (while (and (< ci ipc) (< i total))
-      (setq blk (nth i lst))
-      (setq sep (if (= chunk "") "" "\\P\\P"))
-      (setq chunk (strcat chunk sep (ramais-format-block-mtext (car blk) (cdr blk))))
-      (setq ci (1+ ci) i (1+ i))
+  (if (= (length lst) 0)
+    (alert "Nenhum ponto cadastrado para gerar.")
+    (progn
+      (setq total (length lst) ipc (/ (+ total ncol -1) ncol) col-texts '() i 0)
+      
+      (repeat ncol
+        (setq chunk "" ci 0)
+        (while (and (< ci ipc) (< i total))
+          (setq blk (nth i lst))
+          (setq sep (if (= chunk "") "" "\\P\\P"))
+          (setq chunk (strcat chunk sep (ramais-format-block-mtext (car blk) (cdr blk))))
+          (setq ci (1+ ci) i (1+ i))
+        )
+        (if (not (= chunk "")) (setq col-texts (append col-texts (list chunk))))
+      )
+      
+      (setq pt (getpoint "\nClique no ponto de insercao do MTEXT: "))
+      (if pt
+        (progn
+          (if (not (tblsearch "LAYER" "RAMAL"))
+            (entmake (list '(0 . "LAYER") '(100 . "AcDbSymbolTableRecord") '(100 . "AcDbLayerTableRecord") '(2 . "RAMAL") '(70 . 0) '(62 . 7)))
+          )
+          
+          (setq *ramais-mtext-handles* nil larg 60.0 i 0)
+          (foreach ct col-texts
+            (setq ins-pt (list (+ (car pt) (* i larg)) (cadr pt) (caddr pt)))
+            (entmake (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "RAMAL") (cons 62 7) (cons 100 "AcDbMText") (cons 10 ins-pt) (cons 40 1.5) (cons 41 larg) (cons 71 1) (cons 1 ct)))
+            (setq *ramais-mtext-handles* (append *ramais-mtext-handles* (list (cdr (assoc 5 (entget (entlast)))))))
+            (setq i (1+ i))
+          )
+          (princ (strcat "\n" (itoa (length col-texts)) " coluna(s) gerada(s) com sucesso."))
+        )
+      )
     )
-    (if (not (= chunk "")) (setq col-texts (append col-texts (list chunk))))
   )
-  
-  (setq pt (getpoint "\nClique no ponto de insercao do MTEXT: "))
-  (if (not pt) (exit))
-  
-  ;; MELHORIA AQUI: Criação nativa e limpa da camada por entmake (Evita o bug do comando CIRCLE)
-  (if (not (tblsearch "LAYER" "RAMAL"))
-    (entmake (list
-               '(0 . "LAYER")
-               '(100 . "AcDbSymbolTableRecord")
-               '(100 . "AcDbLayerTableRecord")
-               '(2 . "RAMAL")
-               '(70 . 0)
-               '(62 . 7)
-             ))
-  )
-  
-  (setq larg 60.0 i 0)
-  (foreach ct col-texts
-    (setq ins-pt (list (+ (car pt) (* i larg)) (cadr pt) (caddr pt)))
-    (entmake
-      (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 "RAMAL") (cons 62 7) (cons 100 "AcDbMText") (cons 10 ins-pt) (cons 40 1.5) (cons 41 larg) (cons 71 1) (cons 1 ct))
+)
+
+(defun ramais-silent-update-mtext (lst / ncol total ipc col-texts chunk sep blk i ci ename obj h valid-handles)
+  (if *ramais-mtext-handles*
+    (progn
+      (setq valid-handles nil)
+      (foreach h *ramais-mtext-handles*
+        (if (and (handent h) (entget (handent h))) (setq valid-handles (append valid-handles (list h))))
+      )
+      (setq *ramais-mtext-handles* valid-handles)
+      
+      (if (> (length *ramais-mtext-handles*) 0)
+        (if (= (length lst) 0)
+          (foreach h *ramais-mtext-handles* (vla-put-TextString (vlax-ename->vla-object (handent h)) " "))
+          (progn
+            (setq ncol (length *ramais-mtext-handles*))
+            (setq total (length lst) ipc (/ (+ total ncol -1) ncol) col-texts '() i 0)
+            
+            (repeat ncol
+              (setq chunk "" ci 0)
+              (while (and (< ci ipc) (< i total))
+                (setq blk (nth i lst))
+                (setq sep (if (= chunk "") "" "\\P\\P"))
+                (setq chunk (strcat chunk sep (ramais-format-block-mtext (car blk) (cdr blk))))
+                (setq ci (1+ ci) i (1+ i))
+              )
+              (setq col-texts (append col-texts (list chunk)))
+            )
+            
+            (setq i 0)
+            (foreach h *ramais-mtext-handles*
+              (setq ename (handent h))
+              (vla-put-TextString (vlax-ename->vla-object ename) (nth i col-texts))
+              (setq i (1+ i))
+            )
+          )
+        )
+      )
     )
-    (setq i (1+ i))
   )
-  (princ (strcat "\n" (itoa (length col-texts)) " coluna(s) gerada(s) com sucesso."))
+)
+
+(defun ramais-atualizar-mtext-vinculado (lst)
+  (if (= (length lst) 0)
+    (alert "Nenhum ponto cadastrado para atualizar.")
+    (if (not *ramais-mtext-handles*)
+      (alert "Nenhum MTEXT vinculado.\nUse a opcao 'Gerar Novo' ou 'Carregar' primeiro.")
+      (progn
+        (ramais-silent-update-mtext lst)
+        (princ "\nLista atualizada em todos os MTEXTs vinculados.")
+      )
+    )
+  )
 )
 
 ;;; ============================================================
 ;;; COMANDO PRINCIPAL
 ;;; ============================================================
-(defun C:RAMAIS ( / dclpath txtpath lst key subkey ss ename tag num ncol loop all-lines i txt res)
+(defun C:RAMAIS ( / dclpath txtpath lst-txt lst-mtext lst key ss ename tag num ncol loop all-lines i txt res synced-lst hmatch sync-choice valid-handles)
   (setq txtpath (getvar "DWGPREFIX"))
   (if (or (not txtpath) (= txtpath ""))
     (progn (alert "ATENCAO:\n\nO desenho atual ainda nao foi salvo!\nSalve o desenho primeiro para criar o arquivo RAMAIS.txt.") (princ "\nCancelado."))
     (progn
       (setq txtpath (strcat txtpath "RAMAIS.txt"))
       (if (not (findfile txtpath)) (ramais-write-file txtpath '()))
-      (setq loop T)
       
+      ;; 1. Carrega TXT Primário
+      (setq lst-txt (ramais-parse-file txtpath))
+      (setq lst lst-txt)
+      
+      ;; Prepara DCL Base
+      (setq dclpath (strcat (getvar "TEMPPREFIX") "RAMAIS_TEMP.dcl"))
+      (if (findfile dclpath) (vl-file-delete dclpath))
+      (ramais-write-dynamic-dcl dclpath 8)
+      
+      ;; 2. Verifica se o MTEXT foi editado manualmente
+      (if *ramais-mtext-handles*
+        (progn
+          (setq all-lines nil valid-handles nil)
+          (foreach h *ramais-mtext-handles*
+            (setq ename (handent h))
+            (if (and ename (entget ename))
+              (progn
+                (setq valid-handles (append valid-handles (list h)))
+                (setq txt (ramais-get-full-mtext ename))
+                (setq all-lines (append all-lines (ramais-split-mtext txt)))
+              )
+            )
+          )
+          (setq *ramais-mtext-handles* valid-handles)
+          
+          (if all-lines
+            (progn
+              (setq lst-mtext (ramais-parse-lines all-lines))
+              ;; Se houver diferença, aciona o mediador de conflitos
+              (if (not (equal lst-txt lst-mtext))
+                (progn
+                  (setq sync-choice (ramais-dlg-sync-conflict dclpath))
+                  (if (= sync-choice 2)
+                    (progn 
+                      (setq lst lst-mtext)
+                      (princ "\n[RAMAIS] Sincronizado a partir do MTEXT.")
+                    )
+                    (progn 
+                      (setq lst lst-txt)
+                      (ramais-silent-update-mtext lst)
+                      (princ "\n[RAMAIS] Sincronizado a partir do RAMAIS.txt.")
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+      
+      ;; 3. Sincronização de renomeação de pontos verdes no DWG
+      (setq synced-lst (ramais-auto-sync-pontos lst txtpath))
+      (if (not (equal synced-lst lst))
+        (progn
+          (setq lst synced-lst)
+          (princ "\n[RAMAIS] Vinculos de pontos sincronizados.")
+        )
+      )
+      
+      ;; Atualiza o TXT para refletir qualquer escolha feita na abertura
+      (ramais-write-file txtpath (ramais-format-file-data lst))
+      
+      ;; Loop Principal do DCL
+      (setq loop T)
       (while loop
-        (setq dclpath (strcat (getvar "TEMPPREFIX") "RAMAIS_TEMP.dcl"))
-        (if (findfile dclpath) (vl-file-delete dclpath))
-        (ramais-write-dynamic-dcl dclpath 8)
-
         (setq lst (ramais-parse-file txtpath))
-        (ramais-write-file txtpath (ramais-format-file-data lst))
-
-        (setq key (ramais-dlg-main dclpath))
+        (setq key (ramais-dlg-lista dclpath txtpath))
 
         (cond
           ((= key 1)
            (initget 128)
-           (setq res (getpoint "\nSelecione o MTEXT do ponto (P#) ou digite o numero: "))
+           (setq res (getpoint "\nSelecione o texto verde (P#) na layer FORMATO ou digite o numero: "))
            (cond
-             ;; Cenário A: O usuário digitou um número diretamente
              ((= (type res) 'STR)
               (setq num (atoi res))
-              (if (> num 0)
-                (ramais-dlg-ponto num txtpath lst)
-                (alert "Numero de ponto invalido.")
-              )
+              (if (> num 0) (setq lst (ramais-dlg-ponto num txtpath lst)) (alert "Numero de ponto invalido."))
              )
-             ;; Cenário B: O usuário clicou em um objeto na tela
              ((= (type res) 'LIST)
-              (setq ss (ssget res '((0 . "MTEXT"))))
+              (setq ss (ssget res '((0 . "TEXT,MTEXT"))))
               (if ss
                 (progn
-                  (setq ename (ssname ss 0))
-                  (setq tag (ramais-extract-tag ename))
+                  (setq ename (ssname ss 0) tag (ramais-extract-tag ename))
                   (if tag
                     (progn
-                      (setq num (atoi (substr tag 3 (- (strlen tag) 3))))
-                      ;; Abre o Formulario do Ponto
-                      (ramais-dlg-ponto num txtpath lst)
+                      (setq num (car (ramais-parse-p-tag (strcase tag))))
+                      (if num
+                        (progn
+                          (setq hmatch (assoc num *ramais-handles*))
+                          (if hmatch
+                            (setq *ramais-handles* (subst (cons num (cdr (assoc 5 (entget ename)))) hmatch *ramais-handles*))
+                            (setq *ramais-handles* (append *ramais-handles* (list (cons num (cdr (assoc 5 (entget ename)))))))
+                          )
+                          (setq lst (ramais-dlg-ponto num txtpath lst))
+                        )
+                        (alert "Tag (P#) invalida no objeto selecionado.")
+                      )
                     )
-                    (alert "Nenhum padrao (P#) valido encontrado.")
+                    (alert "Nenhum padrao (P#) valido encontrado no objeto selecionado.")
                   )
                 )
-                (alert "Nenhum MTEXT valido selecionado sob o clique.")
+                (alert "Nenhum TEXT/MTEXT encontrado sob o clique.")
               )
-             )
-           )
-          )
-          ((= key 2) 
-           (setq subkey (ramais-dlg-lista dclpath txtpath))
-           (if (= subkey 3)
-             (progn
-               (princ "\nSelecione um ou mais MTEXT para carregar a lista: ")
-               (setq ss (ssget '((0 . "MTEXT"))))
-               (if ss
-                 (progn
-                   (setq all-lines nil i 0)
-                   (while (< i (sslength ss))
-                     (setq ename (ssname ss i) txt (ramais-get-full-mtext ename))
-                     (setq all-lines (append all-lines (ramais-split-mtext txt)))
-                     (setq i (1+ i))
-                   )
-                   (setq lst (ramais-parse-lines all-lines))
-                   (ramais-write-file txtpath (ramais-format-file-data lst))
-                   (princ (strcat "\ Foram carregados e unificados " (itoa (length lst)) " pontos a partir dos MTEXTs!"))
-                 )
-                 (princ "\nNenhum MTEXT foi selecionado.")
-               )
              )
            )
           )
           ((= key 3)
-           (setq ncol (ramais-dlg-colunas dclpath))
-           (if ncol (ramais-gerar-mtext lst ncol))
+           (princ "\nSelecione um ou mais MTEXT para carregar a lista: ")
+           (setq ss (ssget '((0 . "MTEXT"))))
+           (if ss
+             (progn
+               (setq *ramais-mtext-handles* nil all-lines nil i 0)
+               (while (< i (sslength ss))
+                 (setq ename (ssname ss i))
+                 (setq *ramais-mtext-handles* (append *ramais-mtext-handles* (list (cdr (assoc 5 (entget ename))))))
+                 (setq txt (ramais-get-full-mtext ename))
+                 (setq all-lines (append all-lines (ramais-split-mtext txt)))
+                 (setq i (1+ i))
+               )
+               (setq lst (ramais-parse-lines all-lines))
+               (ramais-write-file txtpath (ramais-format-file-data lst))
+               (princ (strcat "\nForam carregados e unificados " (itoa (length lst)) " pontos a partir dos MTEXTs!"))
+             )
+             (princ "\nNenhum MTEXT foi selecionado.")
+           )
           )
+          ((= key 4)
+           (setq ncol (ramais-dlg-colunas dclpath))
+           (if ncol (progn (ramais-gerar-mtext lst ncol) (ramais-write-file txtpath (ramais-format-file-data lst))))
+          )
+          ((= key 6) (ramais-atualizar-mtext-vinculado lst))
+          ((= key 5) ) ;; Retorno limpo
           (T (setq loop nil))
         )
       )
+      
+      ;; 4. Prompt de Saída (Verifica se precisa gerar MTEXT antes de fechar)
+      (if (and (not *ramais-mtext-handles*) (> (length lst) 0))
+        (if (ramais-dlg-confirm "A lista possui itens, mas nenhum MTEXT foi gerado no desenho.\nDeseja gerar o MTEXT agora?")
+          (progn
+            (setq ncol (ramais-dlg-colunas dclpath))
+            (if ncol (progn (ramais-gerar-mtext lst ncol) (ramais-write-file txtpath (ramais-format-file-data lst))))
+          )
+        )
+      )
+
       (if (findfile dclpath) (vl-file-delete dclpath))
       (princ "\nComando RAMAIS encerrado.")
     )
@@ -732,5 +1093,5 @@
   (princ)
 )
 
-(princ "\nRAMAIS.LSP carregado. Digite RAMAIS para iniciar.")
+(princ "\nRAMAIS.LSP carregado (Sync Bidirecional Inteligente). Digite RAMAIS para iniciar.")
 (princ)

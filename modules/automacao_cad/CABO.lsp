@@ -1,22 +1,11 @@
-
-```lisp
 ;; CABO.lsp - Compativel com nanoCAD 5 gratuito (e AutoCAD)
-;; DCL gerado dinamicamente em arquivo temporario e excluido apos o uso
-;;
-;; LOGICA DE ENTRADA (Opcao 1 - Matemática Direta no Canvas):
-;; O usuario aponta e digita (ou clica) a distancia real que a linha deve ter no desenho.
-;; A LISP desenha a linha exata e calcula a anotação dividindo pela escala.
-;; Exemplo 1:500 - Aponta, digita "20", linha fica com 20, texto anota "10 m".
+;; Melhorias aplicadas: Gestao automatica de Layers e Modo Transformar.
 
-(defun c:CABO (/ desc rede fase opc tipo cor ltype p1 p2 dist distTxt txt
-                 ang_orig ang midPt off txtPt txtH pad pad_risco
-                 pA pB pC pD pR1 pR2 C_i
-                 idx char cur_len max_len num_linhas lines_len
-                 char_w line_sp total_h total_w dx_left dx_right
-                 i top_offset w_i y_offset_i
-                 dcl_id dlg_result dcl_file f_dcl
+(defun c:CABO (/ desc rede fase opc tipo cor ltype p1 p2 txtH pad pad_risco
+                 char_w line_sp dcl_id dlg_result dcl_file f_dcl
                  v_rede v_fase v_opc_MT v_opc_BT v_desc_livre v_tipo
-                 v_escala_fator escala_fator)
+                 v_escala_fator escala_fator v_modo modo layer_name
+                 sel ent entData entType pts i desenha_trecho mt_list mt_desc bt_list bt_desc)
 
   (vl-load-com)
 
@@ -82,8 +71,15 @@
       "    : radio_button { key = \"tipo_R\"; label = \"Removendo\"; }"
       "  }"
       "  : spacer { height = 1; }"
+      "  : text { label = \"--- MODO DE EXECUCAO ---\"; width = 50; }"
       "  : row {"
-      "    : button { key = \"accept\"; label = \"OK\";       is_default = true; width = 12; }"
+      "    : text { label = \"Modo:\"; width = 22; }"
+      "    : radio_button { key = \"modo_D\"; label = \"Desenhar\"; }"
+      "    : radio_button { key = \"modo_T\"; label = \"Transformar\"; }"
+      "  }"
+      "  : spacer { height = 1; }"
+      "  : row {"
+      "    : button { key = \"accept\"; label = \"OK\";        is_default = true; width = 12; }"
       "    : button { key = \"cancel\"; label = \"Cancelar\"; is_cancel  = true; width = 12; }"
       "  }"
       "}"
@@ -122,6 +118,7 @@
   (set_tile "fase_ABC" "1") (set_tile "fase_AC"  "0") (set_tile "fase_A" "0") (set_tile "fase_B" "0") (set_tile "fase_C" "0")
   (set_tile "escala_1000" "1") (set_tile "escala_500"  "0")
   (set_tile "tipo_I"   "1") (set_tile "tipo_R"   "0")
+  (set_tile "modo_D"   "1") (set_tile "modo_T"   "0")
   (mode_tile "opc_MT"     0) (mode_tile "opc_BT"     1) (mode_tile "desc_livre" 1)
 
   ;; Callbacks
@@ -136,6 +133,8 @@
   (action_tile "escala_500" "(set_tile \"escala_1000\" \"0\") (set_tile \"escala_500\" \"1\")")
   (action_tile "tipo_I" "(set_tile \"tipo_I\" \"1\") (set_tile \"tipo_R\" \"0\")")
   (action_tile "tipo_R" "(set_tile \"tipo_I\" \"0\") (set_tile \"tipo_R\" \"1\")")
+  (action_tile "modo_D" "(set_tile \"modo_D\" \"1\") (set_tile \"modo_T\" \"0\")")
+  (action_tile "modo_T" "(set_tile \"modo_D\" \"0\") (set_tile \"modo_T\" \"1\")")
   (action_tile "opc_MT" "(setq v_opc_MT (atoi $value)) (if (= v_opc_MT 12) (mode_tile \"desc_livre\" 0) (mode_tile \"desc_livre\" 1))")
   (action_tile "opc_BT" "(setq v_opc_BT (atoi $value)) (if (= v_opc_BT 9) (mode_tile \"desc_livre\" 0) (mode_tile \"desc_livre\" 1))")
   
@@ -150,7 +149,8 @@
            v_opc_BT     (atoi (get_tile \"opc_BT\"))
            v_desc_livre (get_tile \"desc_livre\")
            v_tipo       (if (= (get_tile \"tipo_I\") \"1\") \"I\" \"R\")
-           v_escala_fator (if (= (get_tile \"escala_500\") \"1\") 2.0 1.0))
+           v_escala_fator (if (= (get_tile \"escala_500\") \"1\") 2.0 1.0)
+           v_modo       (if (= (get_tile \"modo_D\") \"1\") \"D\" \"T\"))
      (done_dialog 1)")
 
   (setq dlg_result (start_dialog))
@@ -162,10 +162,11 @@
   ;;; ============================================================
   ;;; POS-DIALOGO (Carrega Variáveis)
   ;;; ============================================================
-  (setq rede v_rede
-        fase v_fase
-        tipo v_tipo
-        escala_fator v_escala_fator)
+  (setq rede         v_rede
+        fase         v_fase
+        tipo         v_tipo
+        escala_fator v_escala_fator
+        modo         v_modo)
         
   (if (= rede "MT")
     (setq desc (if (= v_opc_MT 12) v_desc_livre (nth v_opc_MT mt_desc)))
@@ -180,31 +181,36 @@
           ((tblsearch "ltype" "HIDDEN")    (setq ltype "HIDDEN"))))
 
   ;;; ============================================================
-  ;;; LOOP DE DESENHO CONTÍNUO (Opção 1)
+  ;;; GERENCIAMENTO DE CAMADAS (LAYERS)
   ;;; ============================================================
-  (setq p1 (getpoint "\nClique no ponto inicial: "))
-  
-  ;; O getpoint padrão pega perfeitamente cliques e digitações com o rubber-band visual
-  (while (setq p2 (getpoint p1 "\nProximo ponto ou digite a distancia final no desenho (ENTER para sair): "))
-    
-    ;; Pega a distância real desenhada no canvas e divide pela escala para gerar a anotação
-    (setq dist    (fix (+ (/ (distance p1 p2) escala_fator) 0.5))
+  (setq layer_name (strcat "REDE_" rede))
+  (if (not (tblsearch "LAYER" layer_name))
+    (entmake (list '(0 . "LAYER")
+                   '(100 . "AcDbSymbolTableRecord")
+                   '(100 . "AcDbLayerTableRecord")
+                   (cons 2 layer_name)
+                   '(70 . 0)
+                   (cons 62 (if (= rede "MT") 1 2))))) ; Cores padrao para nova layer: 1(red) MT / 2(yellow) BT
+
+  ;;; ============================================================
+  ;;; FUNCAO AUXILIAR: DESENHAR TRECHO (Processa 1 Segmento)
+  ;;; ============================================================
+  (defun desenha_trecho (pt1 pt2 / dist distTxt txt ang_orig ang midPt off txtPt max_len cur_len idx lines_len num_linhas total_h total_w dx_left dx_right p_A p_B p_C p_D top_offset i_idx w_i y_offset_i C_i pR1 pR2 char)
+    (setq dist    (fix (+ (/ (distance pt1 pt2) escala_fator) 0.5))
           distTxt (itoa dist)
           txt     (strcat " " desc " " fase " " distTxt " m "))
           
     (while (vl-string-search "\\p" txt)
       (setq txt (vl-string-subst " \\P " "\\p" txt)))
       
-    (setq ang_orig (angle p1 p2)
+    (setq ang_orig (angle pt1 pt2)
           ang      ang_orig)
           
-    ;; Cria a linha
-    (entmake (list '(0 . "LINE") (cons 10 p1) (cons 11 p2) (cons 62 cor) (cons 6 ltype)))
+    (entmake (list '(0 . "LINE") (cons 8 layer_name) (cons 10 pt1) (cons 11 pt2) (cons 62 cor) (cons 6 ltype)))
     
     (if (and (> ang_orig (/ pi 2)) (<= ang_orig (* pi 1.5)))
       (setq ang (- ang pi)))
       
-    ;; Processamento de quebra de texto
     (setq max_len 0 cur_len 0 idx 1 lines_len '())
     (while (<= idx (strlen txt))
       (setq char (substr txt idx 2))
@@ -221,49 +227,82 @@
           total_h    (+ txtH (* (1- num_linhas) line_sp))
           total_w    (* max_len char_w))
           
-    ;; Posicionamento do Texto
-    (setq midPt (mapcar '(lambda (a b) (/ (+ a b) 2.0)) p1 p2)
+    (setq midPt (mapcar '(lambda (a b) (/ (+ a b) 2.0)) pt1 pt2)
           off   (+ 1.0 (/ total_h 2.0)))
     (if (and (> ang_orig (/ pi 2)) (<= ang_orig (* pi 1.5)))
       (setq txtPt (polar midPt (- ang (/ pi 2)) off))
       (setq txtPt (polar midPt (+ ang (/ pi 2)) off)))
       
-    ;; Cria o MTEXT
-    (entmake (list '(0 . "MTEXT") '(100 . "AcDbEntity") '(100 . "AcDbMText")
+    (entmake (list '(0 . "MTEXT") '(100 . "AcDbEntity") '(100 . "AcDbMText") (cons 8 layer_name)
                    (cons 10 txtPt) (cons 40 txtH) (cons 41 0.0) (cons 71 5)
                    (cons 1 txt) (cons 50 ang) (cons 62 cor)))
                    
-    ;; Cria os complementos (Instalando = Caixa / Removendo = Riscos)
     (if (= tipo "I")
       (progn
         (setq dx_left  (polar txtPt (+ ang pi) (+ (/ total_w 2.0) pad))
-              dx_right (polar txtPt ang         (+ (/ total_w 2.0) pad))
-              pA       (polar dx_left  (- ang (/ pi 2)) (+ (/ total_h 2.0) pad))
-              pB       (polar dx_right (- ang (/ pi 2)) (+ (/ total_h 2.0) pad))
-              pC       (polar dx_right (+ ang (/ pi 2)) (+ (/ total_h 2.0) pad))
-              pD       (polar dx_left  (+ ang (/ pi 2)) (+ (/ total_h 2.0) pad)))
-        (entmake (list '(0 . "LWPOLYLINE") '(100 . "AcDbEntity") '(100 . "AcDbPolyline")
+              dx_right (polar txtPt ang          (+ (/ total_w 2.0) pad))
+              p_A      (polar dx_left  (- ang (/ pi 2)) (+ (/ total_h 2.0) pad))
+              p_B      (polar dx_right (- ang (/ pi 2)) (+ (/ total_h 2.0) pad))
+              p_C      (polar dx_right (+ ang (/ pi 2)) (+ (/ total_h 2.0) pad))
+              p_D      (polar dx_left  (+ ang (/ pi 2)) (+ (/ total_h 2.0) pad)))
+        (entmake (list '(0 . "LWPOLYLINE") '(100 . "AcDbEntity") '(100 . "AcDbPolyline") (cons 8 layer_name)
                        '(90 . 4) '(70 . 1) (cons 62 cor)
-                       (cons 10 pA) (cons 10 pB) (cons 10 pC) (cons 10 pD)))))
+                       (cons 10 p_A) (cons 10 p_B) (cons 10 p_C) (cons 10 p_D)))))
                        
     (if (= tipo "R")
       (progn
-        (setq i 0 top_offset (/ (* (1- num_linhas) line_sp) 2.0))
-        (while (< i num_linhas)
-          (setq w_i        (* (nth i lines_len) char_w)
-                y_offset_i (- top_offset (* i line_sp))
+        (setq i_idx 0 top_offset (/ (* (1- num_linhas) line_sp) 2.0))
+        (while (< i_idx num_linhas)
+          (setq w_i        (* (nth i_idx lines_len) char_w)
+                y_offset_i (- top_offset (* i_idx line_sp))
                 C_i        (polar txtPt (+ ang (/ pi 2)) y_offset_i)
                 pR1        (polar C_i (+ ang pi) (+ (/ w_i 2.0) pad_risco))
-                pR2        (polar C_i ang         (+ (/ w_i 2.0) pad_risco)))
-          (entmake (list '(0 . "LINE") (cons 10 pR1) (cons 11 pR2) (cons 62 cor)))
-          (setq i (1+ i)))))
-          
-    ;; Avança o ponto base para o próximo trecho
-    (setq p1 p2)
+                pR2        (polar C_i ang          (+ (/ w_i 2.0) pad_risco)))
+          (entmake (list '(0 . "LINE") (cons 8 layer_name) (cons 10 pR1) (cons 11 pR2) (cons 62 cor)))
+          (setq i_idx (1+ i_idx)))))
+  )
+
+  ;;; ============================================================
+  ;;; ROTINAS DE INSERCAO (MODO DESENHAR OU TRANSFORMAR)
+  ;;; ============================================================
+  (if (= modo "D")
+    (progn
+      (setq p1 (getpoint "\nClique no ponto inicial: "))
+      (while (setq p2 (getpoint p1 "\nProximo ponto ou digite a distancia final no desenho (ENTER para sair): "))
+        (desenha_trecho p1 p2)
+        (setq p1 p2)
+      )
+    )
+    (progn
+      (while (setq sel (entsel "\nSelecione a linha ou polilinha para transformar (ENTER para sair): "))
+        (setq ent (car sel)
+              entData (entget ent)
+              entType (cdr (assoc 0 entData)))
+        (cond
+          ((= entType "LINE")
+           (setq p1 (cdr (assoc 10 entData))
+                 p2 (cdr (assoc 11 entData)))
+           (desenha_trecho p1 p2)
+           (entdel ent) ; Remove a entidade original apos transformacao
+          )
+          ((= entType "LWPOLYLINE")
+           ;; Filtra e extrai todos os codigos de grupo 10 convertendo para coordenadas X,Y,Z
+           (setq pts (mapcar '(lambda (x) (list (cadr x) (caddr x) 0.0)) (vl-remove-if-not '(lambda (x) (= (car x) 10)) entData)))
+           (setq i 0)
+           (while (< i (1- (length pts)))
+             (setq p1 (nth i pts)
+                   p2 (nth (1+ i) pts))
+             (desenha_trecho p1 p2)
+             (setq i (1+ i))
+           )
+           (entdel ent) ; Remove a entidade original apos transformacao
+          )
+          (T (princ "\nEntidade invalida. Selecione uma LINE ou LWPOLYLINE."))
+        )
+      )
+    )
   )
   
   (princ "\nComando CABO concluido.")
   (princ)
 )
-
-```

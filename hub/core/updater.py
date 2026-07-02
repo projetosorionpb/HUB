@@ -49,7 +49,7 @@ def check_updates_sync() -> dict:
       }
     """
     local = _load_local_manifest()
-    result: dict = {"updates": [], "new": [], "metadata_updates": []}
+    result: dict = {"updates": [], "new": [], "metadata_updates": [], "removed": []}
 
     try:
         remote = fetch_remote_manifest()
@@ -127,6 +127,14 @@ def check_updates_sync() -> dict:
                         })
             except Exception:
                 pass
+
+    # Detecta módulos removidos (existem localmente, mas não no remoto)
+    for name in local_modules:
+        if name not in remote_modules:
+            result["removed"].append({
+                "name": name,
+                "display_name": local_modules[name].get("display_name", name)
+            })
 
     return result
 
@@ -254,3 +262,10 @@ class CheckUpdatesWorker(QThread):
             self.result.emit(data)
         except Exception as e:
             self.error.emit(str(e))
+
+
+def remove_module_files(module_name: str) -> None:
+    """Remove a pasta de um módulo do disco local."""
+    module_dir = Path(MODULES_DIR) / module_name
+    if module_dir.exists():
+        shutil.rmtree(module_dir, ignore_errors=True)

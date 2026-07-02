@@ -246,6 +246,52 @@ def empacotar_e_enviar(manifest):
 
     input("\nPressione ENTER para voltar ao menu principal...")
 
+
+def remover_programa(manifest):
+    clear_screen()
+    print("="*60)
+    print("  [-] REMOVER PROGRAMA DO HUB")
+    print("="*60)
+
+    modules = manifest.get("modules", {})
+    if not modules:
+        print("Nenhum modulo cadastrado!")
+        input("\nPressione ENTER para voltar...")
+        return
+
+    mod_list = list(modules.keys())
+    for i, mod_id in enumerate(mod_list):
+        display = modules[mod_id].get('display_name', mod_id)
+        print(f"[{i+1}] {display}")
+
+    escolha = input("\nQual programa deseja REMOVER? (0 para cancelar): ").strip()
+    if not escolha.isdigit() or int(escolha) == 0 or int(escolha) > len(mod_list):
+        return
+
+    mod_id = mod_list[int(escolha)-1]
+    display_name = modules[mod_id].get('display_name', mod_id)
+
+    confirm = input(f"\nTem CERTEZA que deseja remover '{display_name}'? (s/n): ").strip().lower()
+    if confirm != 's':
+        print("Operacao cancelada.")
+        input("\nPressione ENTER para voltar...")
+        return
+
+    # Remove do manifest
+    del manifest["modules"][mod_id]
+    save_manifest(manifest)
+    print(f"\n[OK] '{display_name}' removido do manifest.json!")
+
+    # Remove pasta local
+    mod_dir = MODULES_DIR / mod_id
+    if mod_dir.exists():
+        shutil.rmtree(mod_dir)
+        print(f"[OK] Pasta modules/{mod_id} removida!")
+
+    print("\n[!] Lembre-se: ao publicar a proxima release, os usuarios")
+    print("    terao este modulo removido automaticamente.")
+    input("\nPressione ENTER para voltar...")
+
 # =========================================================
 # MAIN
 # =========================================================
@@ -254,12 +300,13 @@ def main():
         clear_screen()
         manifest = load_manifest()
         print("="*60)
-        print("  HUB DE ENGENHARIA - PAINEL DE CONTROLE ANTIBURRO")
+        print("  HUB DE ENGENHARIA - PAINEL DE CONTROLE")
         print("="*60)
         print()
         print("  [1] Adicionar NOVO Programa ao Hub")
         print("  [2] Atualizar a VERSAO de um Programa Existente")
         print("  [3] EMPACOTAR tudo e Enviar pro GITHUB")
+        print("  [4] REMOVER um Programa do Hub")
         print("  [0] Sair")
         print()
         op = input("Escolha uma opcao: ").strip()
@@ -270,6 +317,8 @@ def main():
             atualizar_programa(manifest)
         elif op == "3":
             empacotar_e_enviar(manifest)
+        elif op == "4":
+            remover_programa(manifest)
         elif op == "0":
             break
 

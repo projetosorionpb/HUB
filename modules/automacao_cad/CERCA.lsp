@@ -270,7 +270,7 @@
                   (setq mtext-obj (vla-AddMText activeSpace (vlax-3d-point (polar mid-pt offset-ang offset-dist)) 0.0 (strcat "C" (itoa c-num) "\\P" opt_fios " FIOS")))
                   (vla-put-AttachmentPoint mtext-obj 5)
                   (vla-put-InsertionPoint  mtext-obj (vlax-3d-point (polar mid-pt offset-ang offset-dist)))
-                  (vla-put-Height   mtext-obj 2.0)
+                  (vla-put-Height   mtext-obj 1.5)
                   (vla-put-Rotation mtext-obj text-ang)
                   (vla-put-Layer    mtext-obj "06- CERCADO")
 

@@ -314,7 +314,7 @@ body{
               <strong>Manter → Instalar</strong>
               <span>Converter operações em todas as abas</span>
             </div>
-            <label class="tog"><input type="checkbox" id="tManter" checked><div class="tog-t"></div><div class="tog-k"></div></label>
+            <label class="tog"><input type="checkbox" id="tManter"><div class="tog-t"></div><div class="tog-k"></div></label>
           </div>
 
         </div>
@@ -338,7 +338,7 @@ body{
 // CONSTANTES E MAPAS (idênticos ao original)
 // ─────────────────────────────────────────────
 const TIPO_ABREV = {"Duplo T":"DT","Simples T":"ST","H":"H"};
-const TIPO_MAP   = {instalar:"I",remover:"R",substituir:"S",manter:"I"};
+const TIPO_MAP   = {instalar:"I",remover:"R",substituir:"S",manter:"M"};
 const MT_MAP = {"CAA2":"CAA 2","CAA 2":"CAA 2","CAA4":"CAA 4","CAA 4":"CAA 4","CAA1/0":"CAA 1/0","CAA 1/0":"CAA 1/0","CAA4/0":"CAA 4/0","CAA 4/0":"CAA 4/0","CAA336,4":"CAA 336,4","CAA 336,4":"CAA 336,4","P50":"P 50/CAZ 9,5","P 50":"P 50/CAZ 9,5","P120":"P 120/CAZ 9,5","P 120":"P 120/CAZ 9,5","P185":"P 185/CAZ 9,5","P 185":"P 185/CAZ 9,5"};
 const BT_MAP  = {"M35":"M3x1x35+35","M 35":"M3x1x35+35","M70":"M3x1x70+70","M 70":"M3x1x70+70","M120":"M3x1x120+70","M 120":"M3x1x120+70","M2x1x35+35":"M2x1x35+35","M3x1x35+35":"M3x1x35+35","M3x1x70+70":"M3x1x70+70","M3x1x120+70":"M3x1x120+70","CA4":"CA 4","CA 4":"CA 4","CA1/0":"CA 1/0/CA 4","CA 1/0":"CA 1/0/CA 4"};
 const ABAS_OP = {"Postes":"Operação","Estrutura MT":"Operação MT","Estrutura BT":"Operação BT","Rede MT":"Tipo de Operação","Rede BT":"Tipo de Operação","Equipamentos":"Tipo de Operação"};
@@ -433,34 +433,129 @@ document.getElementById("fi").addEventListener("change",e=>{if(e.target.files[0]
 // PARSER DXF — extrai INSERTs de poste com ângulo
 // Parser manual leve, sem dependência externa
 // ─────────────────────────────────────────────
+const DXF_LAYERS_PERMITIR = new Set(["CERCADO","ARRUAMENTO","CERCA"]);
+
+// Entidades suportadas para exportar
+const DXF_ENTIDADES = new Set(["LWPOLYLINE","LINE","MTEXT","TEXT","CIRCLE","ARC"]);
+
+let dxfEntidades = []; // todas as entidades não-poste
+
 function parseDxf(text){
   const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n");
   const postes = [];
+  dxfEntidades = [];
+  const cercaPolylines = [];
+  const cercaTextos    = [];
   let i = 0;
+  let emEntities = false;
   while(i < lines.length){
     const code = lines[i] ? lines[i].trim() : "";
     const val  = lines[i+1] ? lines[i+1].trim() : "";
+    if(code === "2" && val === "ENTITIES"){ emEntities = true; i+=2; continue; }
+    if(code === "0" && val === "ENDSEC" && emEntities){ emEntities = false; i+=2; continue; }
+    if(!emEntities){ i+=2; continue; }
+
     if(code === "0" && val === "INSERT"){
-      // lê o bloco INSERT completo
-      let name="", x=null, y=null, rot=0;
+      let name="", x=null, y=null, rot=0, layer="";
       i += 2;
       while(i < lines.length){
         const c2 = lines[i] ? lines[i].trim() : "";
         const v2 = lines[i+1] ? lines[i+1].trim() : "";
-        if(c2 === "0"){ break; } // próxima entidade
-        if(c2 === "2")  name = v2;
-        if(c2 === "10") x    = parseFloat(v2);
-        if(c2 === "20") y    = parseFloat(v2);
-        if(c2 === "50") rot  = parseFloat(v2);
+        if(c2 === "0") break;
+        if(c2 === "2")  name  = v2;
+        if(c2 === "8")  layer = v2;
+        if(c2 === "10") x     = parseFloat(v2);
+        if(c2 === "20") y     = parseFloat(v2);
+        if(c2 === "50") rot   = parseFloat(v2);
         i += 2;
       }
       if(name && DXF_TIPO_MAP[name] && x !== null && y !== null){
         postes.push({nome:name, tipo:DXF_TIPO_MAP[name], x, y, rot});
       }
+    } else if(code === "0" && DXF_ENTIDADES.has(val)){
+      const tipo = val;
+      const campos = {};
+      const xs=[], ys=[], bulges=[];
+      i += 2;
+      while(i < lines.length){
+        const c2 = lines[i] ? lines[i].trim() : "";
+        const v2 = lines[i+1] ? lines[i+1].trim() : "";
+        if(c2 === "0") break;
+        if(c2 === "10") xs.push(v2);
+        else if(c2 === "20") ys.push(v2);
+        else if(c2 === "42") bulges.push(v2);
+        else campos[c2] = v2;
+        i += 2;
+      }
+      const layer = campos["8"] || "";
+      if(!layer) continue;
+
+      // CERCA: coleta separada para associar texto à polilinha
+      if(layer.toUpperCase() === "CERCA"){
+        if(tipo === "LWPOLYLINE" && xs.length >= 2){
+          const mx = xs.reduce((a,v)=>a+parseFloat(v),0)/xs.length;
+          const my = ys.reduce((a,v)=>a+parseFloat(v),0)/ys.length;
+          const pts = xs.map((x,k)=>x+","+ys[k]).join("|");
+          const bstr = bulges.length ? bulges.join("|") : "";
+          const flags = campos["70"] || "0";
+          cercaPolylines.push({mx, my, pts, flags, bstr,
+            x1:xs[0], y1:ys[0], x2:xs[xs.length-1], y2:ys[ys.length-1]});
+        } else if((tipo === "TEXT" || tipo === "MTEXT") && xs.length >= 1){
+          cercaTextos.push({x:parseFloat(xs[0]), y:parseFloat(ys[0]), txt:(campos["1"]||"").trim()});
+        }
+        continue;
+      }
+
+      if(!DXF_LAYERS_PERMITIR.has(layer)) continue;
+      const cor   = campos["62"] || "";
+      const ltype = campos["6"]  || "";
+      const flags = campos["70"] || "0";
+      if(tipo === "LWPOLYLINE" && xs.length >= 2){
+        const pts = xs.map((x,k)=>x+","+ys[k]).join("|");
+        const bstr = bulges.length ? bulges.join("|") : "";
+        dxfEntidades.push({tipo:"PLY",layer,cor,ltype,flags,pts,bulges:bstr});
+      } else if(tipo === "LINE" && xs.length >= 2){
+        dxfEntidades.push({tipo:"LIN",layer,cor,ltype,
+          x1:xs[0],y1:ys[0],x2:xs[1],y2:ys[1]});
+      } else if(tipo === "CIRCLE" && xs.length >= 1){
+        dxfEntidades.push({tipo:"CIR",layer,cor,ltype,
+          cx:xs[0],cy:ys[0],r:campos["40"]||"1"});
+      } else if(tipo === "ARC" && xs.length >= 1){
+        dxfEntidades.push({tipo:"ARC",layer,cor,ltype,
+          cx:xs[0],cy:ys[0],r:campos["40"]||"1",
+          a1:campos["50"]||"0",a2:campos["51"]||"360"});
+      } else if(tipo === "MTEXT"){
+        const txt = (campos["1"]||"").replace(/;/g,"\\;").replace(/\n/g,"\\n");
+        dxfEntidades.push({tipo:"MTX",layer,cor,
+          x:xs[0]||"",y:ys[0]||"",h:campos["40"]||"1.5",
+          rot:campos["50"]||"0",align:campos["71"]||"1",txt});
+      } else if(tipo === "TEXT"){
+        const txt = (campos["1"]||"").replace(/;/g,"\\;").replace(/\n/g,"\\n");
+        dxfEntidades.push({tipo:"TXT",layer,cor,
+          x:xs[0]||"",y:ys[0]||"",h:campos["40"]||"1.5",
+          rot:campos["50"]||"0",txt});
+      }
     } else {
       i += 2;
     }
   }
+
+  // Associar textos às polilinhas CERCA e serializar como CRC
+  for(const poly of cercaPolylines){
+    let bestTxt = "", bestD = Infinity;
+    for(const t of cercaTextos){
+      const d = Math.sqrt((t.x-poly.mx)**2 + (t.y-poly.my)**2);
+      if(d < bestD){ bestD=d; bestTxt=t.txt; }
+    }
+    const m = bestTxt.match(/(\d+)\s*fios?/i);
+    const fios = m ? m[1] : "5";
+    dxfEntidades.push({
+      tipo:"CRC", layer:"CERCA", cor:"", ltype:"",
+      pts:poly.pts, flags:poly.flags, bulges:poly.bstr,
+      fios, x1:poly.x1, y1:poly.y1, x2:poly.x2, y2:poly.y2
+    });
+  }
+
   return postes;
 }
 
@@ -499,8 +594,8 @@ function loadDxf(file){
     info.classList.add("visible");
     document.getElementById("dxfInfoTitle").textContent = file.name;
     document.getElementById("dxfInfoSub").textContent = n > 0
-      ? `${n} poste(s) com ângulo encontrados — serão inseridos na coluna ANGULO_GRAUS`
-      : "Nenhum poste reconhecido — verifique os nomes dos blocos no DXF";
+      ? `${n} poste(s) com ângulo encontrados — ${dxfEntidades.length} entidades DXF extraídas`
+      : `Nenhum poste reconhecido — ${dxfEntidades.length} entidades DXF extraídas`;
     document.getElementById("dxfMatchCount").textContent = `${n} poste${n!==1?"s":""}`;
     document.getElementById("dxfMatchCount").style.background = n > 0 ? "#0c2a0c" : "#2a0c0c";
     document.getElementById("dxfMatchCount").style.color = n > 0 ? "var(--green)" : "var(--red)";
@@ -576,7 +671,7 @@ document.getElementById("btnRun").addEventListener("click",()=>{
 
   // ── Gerar postes.csv ──
   if(mode==="completo"){
-    const COLS=["X","Y","TIPO","DESC_I","TERRA","TRAFO","POT_KVA","CHAVE","QTD","ELO","PR","BASE","DESC_R","TRAFO_R","POT_R","CHAVE_R","QTD_R","ELO_R","ANGULO_GRAUS","PONTO"];
+    const COLS=["X","Y","TIPO","DESC_I","TERRA","TRAFO","POT_KVA","CHAVE","QTD","ELO","PR","BASE","DESC_R","TRAFO_R","POT_R","CHAVE_R","QTD_R","ELO_R","ANGULO_GRAUS","PONTO","DESC_M"];
     const postes=getAba(wbO,"Postes"), mtR=getAba(wbO,"Estrutura MT"), btR=getAba(wbO,"Estrutura BT");
     const equip=getAba(wbO,"Equipamentos"), prot=getAba(wbO,"Proteção"), divers=getAba(wbO,"Diversos");
     const comT=new Set(prot.filter(r=>norm(r["Tipo"]).toUpperCase()==="ATERRAMENTO-ATE").map(r=>parseInt(r["Poste #"])));
@@ -596,12 +691,18 @@ document.getElementById("btnRun").addEventListener("click",()=>{
       const base=tp+(alt||"")+(esf?"/"+esf:"");
       const mtP=mtR.filter(r=>parseInt(r["Poste #"])===num), btP=btR.filter(r=>parseInt(r["Poste #"])===num);
       const j=(...p)=>p.filter(Boolean).join(" ");
-      let dI="",dR="";
-      if(op==="I")       dI=j(base,estStr(mtP,"Operação MT","Estrutura MT","Instalar"),estStr(btP,"Operação BT","Estrutura BT","Instalar"));
-      else if(op==="R")  dR=j(base,estStr(mtP,"Operação MT","Estrutura MT","Remover"), estStr(btP,"Operação BT","Estrutura BT","Remover"));
-      else {
+      let dI="",dR="",dM="";
+      if(op==="I"){
         dI=j(base,estStr(mtP,"Operação MT","Estrutura MT","Instalar"),estStr(btP,"Operação BT","Estrutura BT","Instalar"));
-        dR=j(base,estStr(mtP,"Operação MT","Estrutura MT","Remover"), estStr(btP,"Operação BT","Estrutura BT","Remover"));
+      } else if(op==="R"){
+        dR=j(base,estStr(mtP,"Operação MT","Estrutura MT","Remover"),estStr(btP,"Operação BT","Estrutura BT","Remover"));
+      } else if(op==="M"){
+        dM=j(base,estStr(mtP,"Operação MT","Estrutura MT","Manter"),estStr(btP,"Operação BT","Estrutura BT","Manter"));
+        dI=j(estStr(mtP,"Operação MT","Estrutura MT","Instalar"),estStr(btP,"Operação BT","Estrutura BT","Instalar"));
+        dR=j(estStr(mtP,"Operação MT","Estrutura MT","Remover"),estStr(btP,"Operação BT","Estrutura BT","Remover"));
+      } else {
+        dI=j(base,estStr(mtP,"Operação MT","Estrutura MT","Instalar"),estStr(btP,"Operação BT","Estrutura BT","Instalar"));
+        dR=j(base,estStr(mtP,"Operação MT","Estrutura MT","Remover"),estStr(btP,"Operação BT","Estrutura BT","Remover"));
       }
       let tI=0,pI="",cI=0,tR=0,pR="",cR=0;
       for(const eq of (eqP[num]||[])){
@@ -620,7 +721,7 @@ document.getElementById("btnRun").addEventListener("click",()=>{
         TIPO:op, DESC_I:dI, TERRA:comT.has(num)?1:0,
         TRAFO:tI, POT_KVA:pI, CHAVE:cI, QTD:"", ELO:"", PR:"Nenhum",
         BASE:comB.has(num)?1:0, DESC_R:dR, TRAFO_R:tR, POT_R:pR, CHAVE_R:cR, QTD_R:"", ELO_R:"",
-        ANGULO_GRAUS:angStr, PONTO:"F.P"+num
+        DESC_M:dM, ANGULO_GRAUS:angStr, PONTO:"F.P"+num
       }));
       ok++;
     }
@@ -652,7 +753,23 @@ document.getElementById("btnRun").addEventListener("click",()=>{
 
   // ── Gerar projeto.csv unificado ──
   if(mode==="completo" && dlData.postes && dlData.cabos){
-    dlData.unif = "[POSTES]\n" + dlData.postes + "\n\n[CABOS]\n" + dlData.cabos;
+    let unif = "[POSTES]\n" + dlData.postes + "\n\n[CABOS]\n" + dlData.cabos;
+    if(dxfEntidades.length > 0){
+      // serializar entidades DXF
+      const dxfLines = ["TIPO;LAYER;COR;LTYPE;DADOS"];
+      for(const e of dxfEntidades){
+        if(e.tipo==="PLY") dxfLines.push(`PLY;${e.layer};${e.cor};${e.ltype};${e.flags}|${e.pts}${e.bulges?"|B:"+e.bulges:""}`);
+        else if(e.tipo==="CRC") dxfLines.push(`CRC;CERCA;;;${e.flags}|${e.pts}${e.bulges?"|B:"+e.bulges:""}|FIOS:${e.fios}|P1:${e.x1},${e.y1}|P2:${e.x2},${e.y2}`);
+        else if(e.tipo==="LIN") dxfLines.push(`LIN;${e.layer};${e.cor};${e.ltype};${e.x1},${e.y1},${e.x2},${e.y2}`);
+        else if(e.tipo==="CIR") dxfLines.push(`CIR;${e.layer};${e.cor};${e.ltype};${e.cx},${e.cy},${e.r}`);
+        else if(e.tipo==="ARC") dxfLines.push(`ARC;${e.layer};${e.cor};${e.ltype};${e.cx},${e.cy},${e.r},${e.a1},${e.a2}`);
+        else if(e.tipo==="MTX") dxfLines.push(`MTX;${e.layer};${e.cor};;${e.x},${e.y},${e.h},${e.rot},${e.align},${e.txt}`);
+        else if(e.tipo==="TXT") dxfLines.push(`TXT;${e.layer};${e.cor};;${e.x},${e.y},${e.h},${e.rot},${e.txt}`);
+      }
+      unif += "\n\n[DXF]\n" + dxfLines.join("\n");
+      addLog(`  DXF: ${dxfEntidades.length} entidades incluídas no projeto.csv`, "lok");
+    }
+    dlData.unif = unif;
     document.getElementById("btnDlUnif").style.display="flex";
     addDlCard("ic-unif","ti-files","projeto.csv","Postes + Cabos — PROJETO_LOTE.lsp","unif");
     addLog("  projeto.csv: arquivo unificado gerado", "lok");
