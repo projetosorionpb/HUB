@@ -292,6 +292,78 @@ def remover_programa(manifest):
     print("    terao este modulo removido automaticamente.")
     input("\nPressione ENTER para voltar...")
 
+
+def atualizar_hub(manifest):
+    clear_screen()
+    print("="*60)
+    print("  [*] ATUALIZAR O EXECUTAVEL DO PROPRIO HUB")
+    print("="*60)
+
+    current_hub_ver = manifest.get("hub_version", "1.0.0")
+    sug_hub_ver = increment_version(current_hub_ver)
+
+    print(f"Versao atual do Hub: {current_hub_ver}")
+    new_hub_ver = input(f"Nova versao do Hub [{sug_hub_ver}]: ").strip() or sug_hub_ver
+
+    tag_release = input("\nQual sera a TAG da Release no GitHub? (ex: v1.1.0-Hub): ").strip()
+    if not tag_release:
+        print("Operacao cancelada.")
+        input("\nPressione ENTER para voltar...")
+        return
+
+    print("\n--- Atualizando arquivos de configuracao ---")
+    
+    # Atualiza hub/config.py
+    config_path = ROOT / "hub" / "config.py"
+    if config_path.exists():
+        with open(config_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        content = re.sub(r'HUB_VERSION\s*=\s*".*?"', f'HUB_VERSION = "{new_hub_ver}"', content)
+        with open(config_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(" [OK] hub/config.py atualizado.")
+    else:
+        print(" [!] Aviso: hub/config.py nao encontrado.")
+
+    # Atualiza manifest.json
+    manifest["hub_version"] = new_hub_ver
+    manifest["hub_download_url"] = f"https://github.com/{GITHUB_USER}/{GITHUB_REPO}/releases/download/{tag_release}/HubEngenharia.exe"
+    save_manifest(manifest)
+    print(" [OK] manifest.json atualizado (versao e url de download).")
+
+    print("\n--- Compilando o novo executavel (PyInstaller) ---")
+    print("Isso pode demorar um pouco...\n")
+    try:
+        subprocess.run(["pyinstaller", "hub.spec"], cwd=ROOT, check=True)
+        print("\n[OK] Executavel gerado com sucesso em dist/HubEngenharia.exe")
+    except Exception as e:
+        print(f"\n[ERRO] Falha ao compilar o executavel: {e}")
+        input("\nPressione ENTER para voltar...")
+        return
+
+    print("\n--- Sincronizando com o GitHub ---")
+    try:
+        subprocess.run(["git", "add", "manifest.json", "hub/config.py"], cwd=ROOT, check=True)
+        subprocess.run(["git", "commit", "-m", f"build: bump versao do hub para {new_hub_ver}"], cwd=ROOT, check=True)
+        subprocess.run(["git", "push", "origin", "main"], cwd=ROOT, check=True)
+        print("[OK] Alteracoes enviadas ao GitHub com sucesso!")
+    except Exception as e:
+        print(f"[ERRO] Ocorreu um erro ao rodar os comandos do git: {e}")
+
+    print("\n" + "="*60)
+    print("  QUASE LA! SIGA OS PASSOS FINAIS NO NAVEGADOR:")
+    print("="*60)
+    print("1. Acesse o link abaixo:")
+    print(f"   -> https://github.com/{GITHUB_USER}/{GITHUB_REPO}/releases/new")
+    print(f"\n2. Em 'Choose a tag', digite exatamente: {tag_release}")
+    print("\n3. Arraste O EXECUTAVEL que esta na pasta:")
+    print(f"   {DIST_DIR}\\HubEngenharia.exe")
+    print("   para dentro da caixinha no final da pagina do GitHub.")
+    print("\n4. Clique em 'Publish release'.")
+    print("="*60)
+
+    input("\nPressione ENTER para voltar ao menu principal...")
+
 # =========================================================
 # MAIN
 # =========================================================
@@ -307,6 +379,7 @@ def main():
         print("  [2] Atualizar a VERSAO de um Programa Existente")
         print("  [3] EMPACOTAR tudo e Enviar pro GITHUB")
         print("  [4] REMOVER um Programa do Hub")
+        print("  [5] Compilar e Atualizar o PROPRIO HUB (Launcher)")
         print("  [0] Sair")
         print()
         op = input("Escolha uma opcao: ").strip()
@@ -319,6 +392,8 @@ def main():
             empacotar_e_enviar(manifest)
         elif op == "4":
             remover_programa(manifest)
+        elif op == "5":
+            atualizar_hub(manifest)
         elif op == "0":
             break
 
