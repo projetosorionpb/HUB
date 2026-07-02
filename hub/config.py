@@ -12,7 +12,7 @@ APP_AUTHOR = "Valdeci Nunes"
 APP_ORG = "EPD-PB"
 
 # Versão atual do hub (atualizar a cada release)
-HUB_VERSION = "1.1.0"
+HUB_VERSION = "1.0.3"
 
 # ---------------------------------------------------------------------------
 # GitHub
