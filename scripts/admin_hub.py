@@ -334,7 +334,7 @@ def atualizar_hub(manifest):
     print("\n--- Compilando o novo executavel (PyInstaller) ---")
     print("Isso pode demorar um pouco...\n")
     try:
-        subprocess.run([sys.executable, "-m", "PyInstaller", "hub.spec"], cwd=ROOT, check=True)
+        subprocess.run([sys.executable, "-m", "PyInstaller", "--clean", "--noconfirm", "hub.spec"], cwd=ROOT, check=True)
         print("\n[OK] Executavel gerado com sucesso em dist/HubEngenharia.exe")
     except Exception as e:
         print(f"\n[ERRO] Falha ao compilar o executavel: {e}")
