@@ -1,6 +1,6 @@
 {
-  "hub_version": "1.0.3",
-  "hub_download_url": "https://github.com/projetosorionpb/HUB/releases/download/hub1.0.3/HubEngenharia.exe",
+  "hub_version": "1.0.4",
+  "hub_download_url": "https://github.com/projetosorionpb/HUB/releases/download/hub1.0.4/HubEngenharia.exe",
   "modules": {
     "automacao_cad": {
       "version": "1.0.17",

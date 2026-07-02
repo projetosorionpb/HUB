@@ -34,3 +34,5 @@ venv/
 Thumbs.db
 .DS_Store
 desktop.ini
+MANUAL_DO_USUARIO.md
+dist/HubEngenharia.exe
